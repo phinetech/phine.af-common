@@ -1,0 +1,59 @@
+# Install OpenSSL from packages or source if needed
+install_openssl() {
+    local force=$1
+    local debug=$2
+    
+    echo "Installing OpenSSL development libraries"
+    
+    if [[ $OS_DISTRO == "ubuntu" ]]; then
+        # First remove any existing OpenSSL dev packages to ensure clean installation
+        if [ $force -eq 1 ]; then
+            $SUDO $INSTALLER remove -y --purge libssl-dev
+            $SUDO $INSTALLER autoremove -y
+        fi
+        
+        # Install OpenSSL development packages
+        $SUDO $INSTALLER install -y libssl-dev
+        check_command_failure "Installing OpenSSL development libraries"
+        
+        # Check OpenSSL version
+        OPENSSL_VERSION=$(openssl version | awk '{print $2}')
+        echo "Installed OpenSSL version: $OPENSSL_VERSION"
+        
+        # Create symbolic links if needed
+        if [ ! -f "/usr/lib/libcrypto.so" ] && [ -f "/usr/lib/x86_64-linux-gnu/libcrypto.so" ]; then
+            echo "Creating symbolic links for OpenSSL libraries"
+            $SUDO ln -sf /usr/lib/x86_64-linux-gnu/libcrypto.so /usr/lib/libcrypto.so
+            $SUDO ln -sf /usr/lib/x86_64-linux-gnu/libssl.so /usr/lib/libssl.so
+        fi
+        
+    elif [[ "$OS_BASEDISTRO" == "fedora" ]]; then
+        # Remove existing OpenSSL dev packages if forced
+        if [ $force -eq 1 ]; then
+            $SUDO $INSTALLER remove -y openssl-devel
+        fi
+        
+        # Install OpenSSL development packages
+        $SUDO $INSTALLER install -y openssl-devel
+        check_command_failure "Installing OpenSSL development libraries"
+        
+        # Check OpenSSL version
+        OPENSSL_VERSION=$(openssl version | awk '{print $2}')
+        echo "Installed OpenSSL version: $OPENSSL_VERSION"
+    fi
+    
+    # Make sure pkg-config can find OpenSSL
+    if [ ! -f "/usr/lib/pkgconfig/openssl.pc" ] && [ -f "/usr/lib/x86_64-linux-gnu/pkgconfig/openssl.pc" ]; then
+        echo "Creating pkg-config symlinks for OpenSSL"
+        $SUDO mkdir -p /usr/lib/pkgconfig/
+        $SUDO ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/openssl.pc /usr/lib/pkgconfig/openssl.pc
+        $SUDO ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/libssl.pc /usr/lib/pkgconfig/libssl.pc
+        $SUDO ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/libcrypto.pc /usr/lib/pkgconfig/libcrypto.pc
+    fi
+    
+    # Update the dynamic linker cache
+    $SUDO ldconfig
+    
+    echo "OpenSSL installation complete"
+    return 0
+}

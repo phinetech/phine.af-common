@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# Install spdlog from source
+install_spdlog_from_git() {
+    local force=$1
+    local debug=$2
+    
+    echo "Installing spdlog from source"
+    
+    # Check if spdlog is already installed
+    if [ $force -eq 0 ]; then
+        if [ -d "/usr/local/include/spdlog" ]; then
+            echo "spdlog already installed"
+            return 0
+        fi
+    fi
+    
+    # Create a temporary directory
+    local tmp_dir=$(mktemp -d)
+    cd $tmp_dir
+    
+    # Clone the repository
+    git clone https://github.com/gabime/spdlog.git
+    check_command_failure "Cloning spdlog repository"
+    
+    cd spdlog
+    git checkout v1.10.0
+    
+    # Build and install
+    mkdir -p build
+    cd build
+    
+    # TODO: Disable DCMAKE_POSITION_INDEPENDENT_CODE when we move logger to common
+    cmake -DSPDLOG_BUILD_EXAMPLES=OFF \
+          -DSPDLOG_BUILD_TESTS=OFF \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+          -DCMAKE_INSTALL_PREFIX=/usr/local \
+          ..
+    check_command_failure "Configuring spdlog"
+    
+    make -j$(nproc)
+    check_command_failure "Building spdlog"
+    
+    $SUDO make install
+    check_command_failure "Installing spdlog"
+    
+    $SUDO ldconfig
+    
+    # Clean up
+    cd $THIS_SCRIPT_PATH
+    rm -rf $tmp_dir
+    
+    echo "spdlog installation complete"
+    return 0
+}

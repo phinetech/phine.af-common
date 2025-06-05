@@ -61,6 +61,8 @@ install(DIRECTORY include/
     DESTINATION include/af/communication/implementations/grpc
 )
 
+message(STATUS "Generating gRPC and Protobuf code: ${CMAKE_BINARY_DIR}")
+
 target_sources(af_grpc_communication
     PRIVATE
         ${CMAKE_BINARY_DIR}/generated/message.pb.cc
