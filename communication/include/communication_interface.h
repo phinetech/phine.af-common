@@ -46,7 +46,7 @@
       * @return bool True if initialization succeeded
       */
      virtual bool initialize(const std::string& service_name, 
-                            const std::unordered_map<std::string, std::string>& config) = 0;
+                            const std::unordered_map<std::string, std::string>& config, bool client_only = false) = 0;
  
      /**
       * @brief Send a message and wait for response

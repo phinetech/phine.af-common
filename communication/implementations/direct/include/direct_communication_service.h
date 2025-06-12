@@ -39,7 +39,7 @@
       * @return bool True if initialization succeeded
       */
      bool initialize(const std::string& service_name, 
-                    const std::unordered_map<std::string, std::string>& config) override;
+                    const std::unordered_map<std::string, std::string>& config, bool client_only = false) override;
  
      /**
       * @brief Send a message and wait for response

@@ -55,7 +55,11 @@
      }
  
      // Initialize the service
-     if (!service->initialize(service_name, config)) {
+     bool client_only = false;
+     auto it = config.find("client_only");
+     if (it != config.end() && it->second == "true")
+        client_only = true;
+     if (!service->initialize(service_name, config, client_only)) {
          throw utils::ConfigurationError("Failed to initialize communication service");
      }
  

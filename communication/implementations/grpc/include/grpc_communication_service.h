@@ -45,7 +45,7 @@
       * @return bool True if initialization succeeded
       */
      bool initialize(const std::string& service_name, 
-                    const std::unordered_map<std::string, std::string>& config) override;
+                    const std::unordered_map<std::string, std::string>& config, bool client_only = false) override;
  
      /**
       * @brief Send a message and wait for response
@@ -159,6 +159,7 @@
  
      // Service identity
      std::string service_name_;
+     bool client_only_; // If true, this service only acts as a client
  
      // Internal helper methods
      ClientConnection& get_or_create_connection(const std::string& destination);

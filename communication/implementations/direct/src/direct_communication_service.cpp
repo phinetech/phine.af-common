@@ -33,7 +33,7 @@
  
  bool DirectCommunicationService::initialize(
      const std::string& service_name, 
-     const std::unordered_map<std::string, std::string>& config) {
+     const std::unordered_map<std::string, std::string>& config, bool client_only) {
      
      service_name_ = service_name;
      return true;
