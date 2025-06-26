@@ -31,6 +31,7 @@ install_yaml_cpp_from_git() {
     cd build
     
     cmake -DYAML_BUILD_SHARED_LIBS=ON \
+          -DYAML_CPP_BUILD_TESTS=off \
           -DCMAKE_INSTALL_PREFIX=/usr/local \
           ..
     check_command_failure "Configuring yaml-cpp"
