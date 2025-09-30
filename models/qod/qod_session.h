@@ -1,5 +1,5 @@
-#ifndef AF_CORE_MODEL_QOD_SESSION_H
-#define AF_CORE_MODEL_QOD_SESSION_H
+#ifndef AF_COMMON_MODEL_QOD_SESSION_H
+#define AF_COMMON_MODEL_QOD_SESSION_H
 
 #include <string>
 #include <vector>
@@ -7,7 +7,7 @@
 #include <chrono>
 #include <functional>
 
-#include "common.h"
+#include "../common.h"
 
 namespace af {
 namespace qod {
@@ -334,4 +334,4 @@ template<> struct hash<af::qod::QodSession> {
 
 } // namespace std
 
-#endif // AF_CORE_MODEL_QOD_SESSION_H
+#endif // AF_COMMON_MODEL_QOD_SESSION_H

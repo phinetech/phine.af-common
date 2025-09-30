@@ -1,5 +1,5 @@
-#ifndef AF_CORE_MODEL_QOD_EVENTS_H
-#define AF_CORE_MODEL_QOD_EVENTS_H
+#ifndef AF_COMMON_MODEL_QOD_EVENTS_H
+#define AF_COMMON_MODEL_QOD_EVENTS_H
 
 #include <string>
 #include <chrono>
