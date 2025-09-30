@@ -8,6 +8,7 @@
 #include "qod_session.h"
 
 namespace af {
+namespace common {
 namespace qod {
 
 /**
@@ -208,6 +209,7 @@ public:
 };
 
 } // namespace qod
+} // namespace common
 } // namespace af
 
 #endif // AF_CORE_MODEL_QOD_EVENTS_H

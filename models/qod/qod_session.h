@@ -10,6 +10,7 @@
 #include "../common.h"
 
 namespace af {
+namespace common {
 namespace qod {
 
 /**
@@ -273,24 +274,25 @@ public:
 };
 
 } // namespace qod
+} // namespace common
 } // namespace af
 
 // Hash specializations for QoD types
 namespace std {
 
-template<> struct hash<af::qod::PortRange> {
-    size_t operator()(const af::qod::PortRange& pr) const {
+template<> struct hash<af::common::qod::PortRange> {
+    size_t operator()(const af::common::qod::PortRange& pr) const {
         size_t h = hash<uint16_t>{}(pr.from);
         hash_combine(h, hash<uint16_t>{}(pr.to));
         return h;
     }
 };
 
-template<> struct hash<af::qod::PortsSpec> {
-    size_t operator()(const af::qod::PortsSpec& ps) const {
+template<> struct hash<af::common::qod::PortsSpec> {
+    size_t operator()(const af::common::qod::PortsSpec& ps) const {
         size_t h = 0;
         for (const auto& range : ps.ranges) {
-            hash_combine(h, hash<af::qod::PortRange>{}(range));
+            hash_combine(h, hash<af::common::qod::PortRange>{}(range));
         }
         for (const auto& port : ps.ports) {
             hash_combine(h, hash<uint16_t>{}(port));
@@ -299,8 +301,8 @@ template<> struct hash<af::qod::PortsSpec> {
     }
 };
 
-template<> struct hash<af::qod::DeviceIpv4Addr> {
-    size_t operator()(const af::qod::DeviceIpv4Addr& d) const {
+template<> struct hash<af::common::qod::DeviceIpv4Addr> {
+    size_t operator()(const af::common::qod::DeviceIpv4Addr& d) const {
         size_t h = hash<Ipv4Addr>{}(d.public_address);
         hash_combine(h, hash_optional(d.private_address));
         hash_combine(h, hash_optional(d.public_port));
@@ -308,8 +310,8 @@ template<> struct hash<af::qod::DeviceIpv4Addr> {
     }
 };
 
-template<> struct hash<af::qod::QodDevice> {
-    size_t operator()(const af::qod::QodDevice& d) const {
+template<> struct hash<af::common::qod::QodDevice> {
+    size_t operator()(const af::common::qod::QodDevice& d) const {
         size_t h = hash_optional(d.phone_number);
         hash_combine(h, hash_optional(d.network_access_identifier));
         hash_combine(h, hash_optional(d.ipv4_address));
@@ -318,16 +320,16 @@ template<> struct hash<af::qod::QodDevice> {
     }
 };
 
-template<> struct hash<af::qod::ApplicationServer> {
-    size_t operator()(const af::qod::ApplicationServer& as) const {
+template<> struct hash<af::common::qod::ApplicationServer> {
+    size_t operator()(const af::common::qod::ApplicationServer& as) const {
         size_t h = hash_optional(as.ipv4_address);
         hash_combine(h, hash_optional(as.ipv6_address));
         return h;
     }
 };
 
-template<> struct hash<af::qod::QodSession> {
-    size_t operator()(const af::qod::QodSession& qs) const {
+template<> struct hash<af::common::qod::QodSession> {
+    size_t operator()(const af::common::qod::QodSession& qs) const {
         return hash<string>{}(qs.session_id);
     }
 };
