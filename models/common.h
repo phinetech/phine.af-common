@@ -6,6 +6,9 @@
 #include <optional>
 #include <functional> // Required for std::hash
 
+// TODO: add to namespace af::common
+
+
 // --- Fundamental 3GPP Data Types (building blocks) ---
 
 /**
