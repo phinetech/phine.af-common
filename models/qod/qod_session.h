@@ -156,6 +156,22 @@ struct SinkCredential {
 };
 
 /**
+ * @brief QoS profile to 5QI mapping configuration
+ */
+struct QosProfileMapping {
+    int fiveqi;                          // 5G QoS Identifier
+    std::optional<int> priority_level;   // Priority level (1-127)
+    std::optional<int> packet_delay_budget; // In milliseconds
+    std::optional<double> packet_error_rate; // Error rate (e.g., 10^-2)
+    std::optional<int> max_data_burst_volume; // In bytes
+    bool is_gbr;                         // Guaranteed Bit Rate
+    std::optional<int> guaranteed_uplink_rate;   // In kbps
+    std::optional<int> guaranteed_downlink_rate; // In kbps
+    std::optional<int> max_uplink_rate;          // In kbps
+    std::optional<int> max_downlink_rate;        // In kbps
+};
+
+/**
  * @brief Complete QoD session information
  * Represents a CAMARA QualityOnDemand session
  */
@@ -175,6 +191,7 @@ struct QodSession {
     
     // QoS profile and status
     std::string qos_profile;                          // QoS profile name (e.g., "QOS_L", "QOS_E")
+    QosProfileMapping qos_profile_mapping;      // Mapped QoS parameters
     QosStatus qos_status;                             // Current session status
     std::optional<StatusInfo> status_info;            // Additional status information
     
