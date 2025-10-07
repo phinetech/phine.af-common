@@ -191,7 +191,7 @@ struct QodSession {
     
     // QoS profile and status
     std::string qos_profile;                          // QoS profile name (e.g., "QOS_L", "QOS_E")
-    QosProfileMapping qos_profile_mapping;      // Mapped QoS parameters
+    std::optional<QosProfileMapping> qos_profile_mapping;      // Mapped QoS parameters
     QosStatus qos_status;                             // Current session status
     std::optional<StatusInfo> status_info;            // Additional status information
     
