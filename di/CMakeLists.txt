@@ -14,21 +14,16 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Create library for DI framework
-add_library(af_di
-    src/service_container.cpp
-    src/service_provider.cpp
+add_library(af_di INTERFACE)
+
+target_include_directories(af_di INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 
-# Set include directories
-target_include_directories(af_di
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
+target_link_libraries(af_di INTERFACE
+    af_cpp_utils
 )
-
-# Set C++ standard
-target_compile_features(af_di PUBLIC cxx_std_17)
 
 # Install
 install(TARGETS af_di

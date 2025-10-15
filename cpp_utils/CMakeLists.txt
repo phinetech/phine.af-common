@@ -6,9 +6,9 @@
 # Create library for C++ utilities
 add_library(af_cpp_utils INTERFACE)
 
-# Set include directories
 target_include_directories(af_cpp_utils INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 
 # Install headers

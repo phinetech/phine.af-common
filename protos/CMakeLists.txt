@@ -1,35 +1,71 @@
-# CMakeLists.txt for Protobuf Definitions
-#
-# This file configures the build for protobuf message and service definitions
-# used for internal AF communication.
+# CMakeLists.txt for Protocol Buffer Definitions
 
-# Find protobuf compiler and libraries
-find_package(Protobuf REQUIRED)
-find_package(gRPC QUIET)
-
-# Get all proto files
+# Find the proto files
 file(GLOB PROTO_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.proto")
 
-# Set output directories
-set(PROTO_SRC_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
-set(PROTO_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+if(NOT PROTO_FILES)
+    message(WARNING "No .proto files found in ${CMAKE_CURRENT_SOURCE_DIR}")
+    add_library(af_protos INTERFACE)
+    return()
+endif()
 
-# Make sure the output directory exists
-file(MAKE_DIRECTORY ${PROTO_SRC_DIR})
+message(STATUS "Found proto files: ${PROTO_FILES}")
 
-# Generate C++ code from proto files
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
+# Check if any proto files contain gRPC service definitions
+set(HAS_GRPC_SERVICES FALSE)
+foreach(PROTO_FILE ${PROTO_FILES})
+    file(READ ${PROTO_FILE} PROTO_CONTENT)
+    string(FIND "${PROTO_CONTENT}" "service " SERVICE_POS)
+    if(NOT SERVICE_POS EQUAL -1)
+        set(HAS_GRPC_SERVICES TRUE)
+        break()
+    endif()
+endforeach()
 
-# Create library for protobuf generated code
-add_library(af_protos ${PROTO_SRCS} ${PROTO_HDRS})
-target_link_libraries(af_protos PUBLIC protobuf::libprotobuf)
-target_include_directories(af_protos PUBLIC
-    ${PROTO_INCLUDE_DIR}
-    ${Protobuf_INCLUDE_DIRS}
+if(HAS_GRPC_SERVICES)
+    message(STATUS "Proto files contain gRPC service definitions")
+    generate_grpc_cpp(af_protos "${PROTO_FILES}" "${GENERATED_CODE_DIR}")
+    
+    add_library(af_protos STATIC
+        ${af_protos_PROTO_SRCS}
+        ${af_protos_PROTO_HDRS}
+        ${af_protos_GRPC_SRCS}
+        ${af_protos_GRPC_HDRS}
+    )
+    
+    target_link_libraries(af_protos
+        PUBLIC
+            protobuf::libprotobuf
+            gRPC::grpc++
+            gRPC::grpc++_reflection
+    )
+else()
+    message(STATUS "Proto files contain only message definitions")
+    generate_protobuf_cpp(af_protos "${PROTO_FILES}" "${GENERATED_CODE_DIR}")
+    
+    add_library(af_protos STATIC
+        ${af_protos_SRCS}
+        ${af_protos_HDRS}
+    )
+    
+    target_link_libraries(af_protos
+        PUBLIC
+            protobuf::libprotobuf
+    )
+endif()
+
+# Use generator expressions for include directories
+target_include_directories(af_protos
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${GENERATED_CODE_DIR}>
+        $<INSTALL_INTERFACE:include>
+        $<INSTALL_INTERFACE:include/af/protos>
 )
 
-# Install generated headers
-install(DIRECTORY ${PROTO_INCLUDE_DIR}/
-    DESTINATION include/af/protos
-    FILES_MATCHING PATTERN "*.h"
+set_target_properties(af_protos PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    CXX_STANDARD 17
 )
+
+message(STATUS "Protobuf library af_protos configured")

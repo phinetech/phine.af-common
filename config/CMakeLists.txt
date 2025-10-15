@@ -8,26 +8,18 @@
 find_package(yaml-cpp REQUIRED)
 
 # Create library
-add_library(af_config
-    src/af_config.cpp
+add_library(af_config INTERFACE)
+
+target_include_directories(af_config INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 
-# Set include directories
-target_include_directories(af_config
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
+target_link_libraries(af_config INTERFACE
+    af_cpp_utils
+    af_models
+    yaml-cpp
 )
-
-# Link dependencies
-target_link_libraries(af_config
-    PUBLIC
-        yaml-cpp
-)
-
-# Set C++ standard
-target_compile_features(af_config PUBLIC cxx_std_17)
 
 # Install
 install(TARGETS af_config

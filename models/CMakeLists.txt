@@ -6,9 +6,13 @@
 # Create library for common models
 add_library(af_models INTERFACE)
 
-# Set include directories
 target_include_directories(af_models INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(af_models INTERFACE
+    af_cpp_utils
 )
 
 # Install headers

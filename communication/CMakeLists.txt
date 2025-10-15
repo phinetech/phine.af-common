@@ -9,38 +9,37 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Create interface library for communication interface
 add_library(af_communication_interface INTERFACE)
+
 target_include_directories(af_communication_interface INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/..    # Add parent directory (common) for proper include resolution
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
+    $<INSTALL_INTERFACE:include>
 )
+
 target_link_libraries(af_communication_interface INTERFACE
     af_models
+    af_cpp_utils
 )
 
-# Create library for communication factory
-add_library(af_communication_factory
-    src/communication_factory.cpp
-)
-target_include_directories(af_communication_factory
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/..    # Add parent directory for proper include resolution
-)
-target_link_libraries(af_communication_factory
-    PUBLIC
-        af_communication_interface
-    PRIVATE
-        af_cpp_utils
+# Create factory library
+add_library(af_communication_factory INTERFACE)
+
+target_include_directories(af_communication_factory INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 
-# Add subdirectories for implementations
+target_link_libraries(af_communication_factory INTERFACE
+    af_communication_interface
+)
+
+# Add implementations
 add_subdirectory(implementations/direct)
 add_subdirectory(implementations/grpc)
 
-# Create combined library that depends on available implementations
+# Create main communication library
 add_library(af_communication INTERFACE)
+
 target_link_libraries(af_communication INTERFACE
     af_communication_interface
     af_communication_factory

@@ -1,0 +1,11 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Find required dependencies
+find_dependency(gRPC REQUIRED)
+
+# Include the targets file
+include("${CMAKE_CURRENT_LIST_DIR}/af_commonTargets.cmake")
+
+check_required_components(af_common)
