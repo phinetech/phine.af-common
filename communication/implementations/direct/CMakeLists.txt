@@ -8,14 +8,17 @@
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Create library
-add_library(af_direct_communication INTERFACE)
+add_library(af_direct_communication SHARED
+    src/direct_communication_service.cpp
+)
 
-target_include_directories(af_direct_communication INTERFACE
+target_include_directories(af_direct_communication PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../..>
     $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(af_direct_communication INTERFACE
+target_link_libraries(af_direct_communication PUBLIC
     af_communication_interface
     af_models
 )

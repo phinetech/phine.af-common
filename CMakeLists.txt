@@ -52,6 +52,7 @@ target_link_libraries(af_common INTERFACE
     af_di
     af_communication
     af_config
+    af_common_component
     # af_logging
 )
 
@@ -76,6 +77,7 @@ install(TARGETS
     af_direct_communication
     af_grpc_communication
     af_config
+    af_common_component
     EXPORT af_commonTargets
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
@@ -110,6 +112,12 @@ install(DIRECTORY
 
 install(DIRECTORY 
     config/include/
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+)
+
+install(DIRECTORY 
+    component/include/
     DESTINATION include
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )

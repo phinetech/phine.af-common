@@ -22,16 +22,25 @@ target_link_libraries(af_communication_interface INTERFACE
 )
 
 # Create factory library
-add_library(af_communication_factory INTERFACE)
+add_library(af_communication_factory SHARED
+    src/communication_factory.cpp
+)
 
-target_include_directories(af_communication_factory INTERFACE
+target_include_directories(af_communication_factory PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
     $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(af_communication_factory INTERFACE
+target_link_libraries(af_communication_factory PUBLIC
     af_communication_interface
+    af_direct_communication
 )
+
+# Add gRPC implementation if available
+if(TARGET af_grpc_communication)
+    target_link_libraries(af_communication_factory PUBLIC af_grpc_communication)
+endif()
 
 # Add implementations
 add_subdirectory(implementations/direct)
