@@ -92,6 +92,15 @@ public:
             (*response->mutable_metadata())[entry.first] = entry.second;
         }
 
+        // Determine gRPC status code from metadata.status (hrpc::StatusCode)
+        auto status_it = resp_msg->metadata.find("status");
+        if (status_it != resp_msg->metadata.end()) {
+            ::grpc::StatusCode grpc_code = parent_->map_status_code(status_it->second);
+            if (grpc_code != ::grpc::StatusCode::OK) {
+                return ::grpc::Status(grpc_code, "Status from metadata: " + status_it->second);
+            }
+        }
+
         return ::grpc::Status::OK;
     }
 
@@ -147,6 +156,16 @@ public:
             
             for (const auto& entry : resp_msg->metadata) {
                 (*response.mutable_metadata())[entry.first] = entry.second;
+            }
+
+            // Determine gRPC status code from metadata.status (hrpc::StatusCode)
+            auto status_it = resp_msg->metadata.find("status");
+            if (status_it != resp_msg->metadata.end()) {
+                ::grpc::StatusCode grpc_code = parent_->map_status_code(status_it->second);
+                if (grpc_code != ::grpc::StatusCode::OK) {
+                    // End the stream with the error status
+                    return ::grpc::Status(grpc_code, "Status from metadata: " + status_it->second);
+                }
             }
 
             if (!stream->Write(response)) {
@@ -510,6 +529,34 @@ std::string GrpcCommunicationService::generate_subscription_id() {
     }
 
     return ss.str();
+}
+
+::grpc::StatusCode GrpcCommunicationService::map_status_code(const std::string& status_str) {
+    // hrpc::StatusCode is assumed to be an enum with the same values as grpc::StatusCode
+    int code = 0;
+    try {
+        code = static_cast<int>(std::stoi(status_str));
+    } catch (...) {
+        code = static_cast<int>(::grpc::StatusCode::UNKNOWN);
+    }
+    ::grpc::StatusCode grpc_code = ::grpc::StatusCode::UNKNOWN;
+    switch (code) {
+        case 200: grpc_code = ::grpc::StatusCode::OK; break;
+        case 201: grpc_code = ::grpc::StatusCode::OK; break;
+        case 400: grpc_code = ::grpc::StatusCode::INVALID_ARGUMENT; break;
+        case 401: grpc_code = ::grpc::StatusCode::UNAUTHENTICATED; break;
+        case 403: grpc_code = ::grpc::StatusCode::PERMISSION_DENIED; break;
+        case 404: grpc_code = ::grpc::StatusCode::NOT_FOUND; break;
+        case 409: grpc_code = ::grpc::StatusCode::ALREADY_EXISTS; break;
+        case 429: grpc_code = ::grpc::StatusCode::RESOURCE_EXHAUSTED; break;
+        case 499: grpc_code = ::grpc::StatusCode::CANCELLED; break;
+        case 500: grpc_code = ::grpc::StatusCode::INTERNAL; break;
+        case 501: grpc_code = ::grpc::StatusCode::UNIMPLEMENTED; break;
+        case 503: grpc_code = ::grpc::StatusCode::UNAVAILABLE; break;
+        case 504: grpc_code = ::grpc::StatusCode::DEADLINE_EXCEEDED; break;
+        default: grpc_code = ::grpc::StatusCode::UNKNOWN; break;
+    }
+    return grpc_code;
 }
 
 } // namespace grpc

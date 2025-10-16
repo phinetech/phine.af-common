@@ -122,6 +122,13 @@
       * @return bool True if server stopped successfully
       */
      bool stop() override;
+
+     /**
+      * @brief Map status code from metadata to gRPC status code
+      * @param status_str Status code as string from message metadata
+      * @return ::grpc::StatusCode Corresponding gRPC status code
+      */
+    ::grpc::StatusCode map_status_code(const std::string& status_str);
  
  private:
      // Internal gRPC service implementation (will be implemented as nested class)
