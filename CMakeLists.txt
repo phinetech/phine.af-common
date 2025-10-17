@@ -13,6 +13,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Add cmake module path for custom Find modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+# Use system libraries by default
+option(USE_SYSTEM_OPENSSL "Use system installed OpenSSL" ON)
+option(USE_SYSTEM_NGHTTP2 "Use system installed nghttp2" ON)
+option(USE_SYSTEM_BOOST "Use system installed Boost" ON)
+option(USE_SYSTEM_GRPC "Use system installed gRPC" ON)
+option(USE_SYSTEM_PROTOBUF "Use system installed Protobuf" ON)
+
 # Common compilation flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
