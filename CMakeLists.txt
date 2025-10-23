@@ -37,6 +37,9 @@ file(MAKE_DIRECTORY ${GENERATED_CODE_DIR})
 # Find or build gRPC (will also handle Protobuf)
 find_package(gRPC REQUIRED)
 
+# Find OpenSSL (required by gRPC)
+find_package(OpenSSL REQUIRED)
+
 # Include helper functions for protobuf/gRPC code generation
 include(GenerateProtos)
 

@@ -7,6 +7,8 @@
 # Find required packages
 find_package(gRPC QUIET)
 find_package(Protobuf REQUIRED)
+# Find OpenSSL (required by gRPC)
+find_package(OpenSSL REQUIRED)
 
 if(NOT gRPC_FOUND)
     message(STATUS "gRPC not found - gRPC communication implementation will not be built")
@@ -39,6 +41,10 @@ target_link_libraries(af_grpc_communication
     PRIVATE
         af_cpp_utils
         gRPC::grpc++
+        gRPC::grpc
+        gRPC::gpr
+        OpenSSL::SSL
+        OpenSSL::Crypto
 )
 
 install(TARGETS af_grpc_communication

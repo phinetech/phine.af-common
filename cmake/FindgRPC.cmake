@@ -14,6 +14,7 @@ if(USE_SYSTEM_GRPC)
     find_library(GRPC_LIBRARY NAMES grpc REQUIRED)
     find_library(GRPC_GRPC++_LIBRARY NAMES grpc++ REQUIRED)
     find_library(GRPC_GRPC++_REFLECTION_LIBRARY NAMES grpc++_reflection)
+    find_library(GRPC_GPR_LIBRARY NAMES gpr)
     
     find_path(GRPC_INCLUDE_DIR grpc/grpc.h REQUIRED)
     
@@ -45,6 +46,17 @@ if(USE_SYSTEM_GRPC)
                 IMPORTED_LOCATION ${GRPC_GRPC++_REFLECTION_LIBRARY}
                 INTERFACE_INCLUDE_DIRECTORIES ${GRPC_INCLUDE_DIR}
             )
+        endif()
+        
+        if(GRPC_GPR_LIBRARY)
+            add_library(gRPC::gpr UNKNOWN IMPORTED)
+            set_target_properties(gRPC::gpr PROPERTIES
+                IMPORTED_LOCATION ${GRPC_GPR_LIBRARY}
+                INTERFACE_INCLUDE_DIRECTORIES ${GRPC_INCLUDE_DIR}
+            )
+        else()
+            # gpr might be statically linked into grpc++
+            add_library(gRPC::gpr INTERFACE IMPORTED)
         endif()
     endif()
     
@@ -99,6 +111,7 @@ if(USE_SYSTEM_GRPC)
         GRPC_LIBRARY
         GRPC_GRPC++_LIBRARY
         GRPC_GRPC++_REFLECTION_LIBRARY
+        GRPC_GPR_LIBRARY
         GRPC_INCLUDE_DIR
         GRPC_CPP_PLUGIN
         GRPC_PYTHON_PLUGIN
@@ -154,6 +167,13 @@ else()
     
     if(TARGET grpc AND NOT TARGET gRPC::grpc)
         add_library(gRPC::grpc ALIAS grpc)
+    endif()
+    
+    if(TARGET gpr AND NOT TARGET gRPC::gpr)
+        add_library(gRPC::gpr ALIAS gpr)
+    else()
+        # gpr might be statically linked into grpc++
+        add_library(gRPC::gpr INTERFACE IMPORTED)
     endif()
     
     # Create protobuf aliases (gRPC's bundled protobuf)

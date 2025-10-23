@@ -1,0 +1,24 @@
+@PACKAGE_INIT@
+
+# Find dependencies required by OAI CN5G Common libraries
+include(CMakeFindDependencyMacro)
+find_dependency(spdlog REQUIRED)
+
+# Include the exported targets
+include("${CMAKE_CURRENT_LIST_DIR}/oai_cn5g_common_targets.cmake")
+
+# Set the found flag
+set(oai_cn5g_common_FOUND TRUE)
+
+# Provide information about the libraries
+set(OAI_CN5G_COMMON_LIBRARIES 
+    oai::CONFIG 
+    oai::PCF 
+    oai::COMMON_MODEL 
+    oai::LOGGER 
+    oai::NAS
+    oai::COMMON
+    oai::UTILS
+)
+
+check_required_components(oai_cn5g_common)

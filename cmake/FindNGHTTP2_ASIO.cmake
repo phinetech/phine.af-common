@@ -20,52 +20,47 @@ if(USE_SYSTEM_NGHTTP2_ASIO)
         
         if(NGHTTP2_ASIO_LIBRARY)
             message(STATUS "Found nghttp2_asio library at: ${NGHTTP2_ASIO_LIBRARY}")
-            # Library found - nghttp2_asio headers are in the same location as nghttp2
-            # When nghttp2 is built with ENABLE_ASIO_LIB=ON, the ASIO headers are installed
-            # alongside the regular nghttp2 headers
             
-            # First try to find ASIO-specific headers
-            find_path(NGHTTP2_ASIO_INCLUDE_DIR 
-                NAMES nghttp2/asio_http2.h
-                PATHS /usr/include /usr/local/include
-                NO_DEFAULT_PATH
-            )
-            
-            if(NOT NGHTTP2_ASIO_INCLUDE_DIR)
-                # If ASIO headers not found separately, check for nghttp2 base headers
-                # (ASIO headers are part of nghttp2 installation when built with ASIO support)
+            # nghttp2_asio uses the same headers as nghttp2
+            # Check if NGHTTP2_INCLUDE_DIRS was already set by FindNGHTTP2
+            if(DEFINED NGHTTP2_INCLUDE_DIRS AND NGHTTP2_INCLUDE_DIRS)
+                message(STATUS "Using NGHTTP2_INCLUDE_DIRS from FindNGHTTP2: ${NGHTTP2_INCLUDE_DIRS}")
+                set(NGHTTP2_ASIO_FOUND TRUE)
+                set(NGHTTP2_ASIO_LIBRARIES ${NGHTTP2_ASIO_LIBRARY})
+                set(NGHTTP2_ASIO_INCLUDE_DIRS ${NGHTTP2_INCLUDE_DIRS})
+            else()
+                # NGHTTP2_INCLUDE_DIRS not set, search for headers ourselves
                 find_path(NGHTTP2_ASIO_INCLUDE_DIR 
                     NAMES nghttp2/nghttp2.h
                     PATHS /usr/include /usr/local/include
                     NO_DEFAULT_PATH
                 )
+                
                 if(NGHTTP2_ASIO_INCLUDE_DIR)
-                    message(STATUS "Using nghttp2 base headers for nghttp2_asio")
+                    set(NGHTTP2_ASIO_FOUND TRUE)
+                    set(NGHTTP2_ASIO_LIBRARIES ${NGHTTP2_ASIO_LIBRARY})
+                    set(NGHTTP2_ASIO_INCLUDE_DIRS ${NGHTTP2_ASIO_INCLUDE_DIR})
+                    message(STATUS "Found nghttp2 headers at: ${NGHTTP2_ASIO_INCLUDE_DIR}")
+                else()
+                    message(WARNING "Found nghttp2_asio library but no headers")
                 endif()
             endif()
-            
-            if(NGHTTP2_ASIO_INCLUDE_DIR)
-                set(NGHTTP2_ASIO_FOUND TRUE)
-                set(NGHTTP2_ASIO_LIBRARIES ${NGHTTP2_ASIO_LIBRARY})
-                set(NGHTTP2_ASIO_INCLUDE_DIRS ${NGHTTP2_ASIO_INCLUDE_DIR})
-                message(STATUS "Found nghttp2_asio library and headers at: ${NGHTTP2_ASIO_INCLUDE_DIR}")
-            else()
-                message(WARNING "Found nghttp2_asio library at ${NGHTTP2_ASIO_LIBRARY} but no headers found in /usr/include or /usr/local/include")
-                # List what's actually in /usr/local/include to debug
-                execute_process(COMMAND ls -la /usr/local/include/nghttp2/ OUTPUT_VARIABLE NGHTTP2_HEADERS ERROR_QUIET)
-                message(STATUS "nghttp2 headers in /usr/local/include/nghttp2/:\n${NGHTTP2_HEADERS}")
-            endif()
         else()
-            message(STATUS "nghttp2_asio library not found in standard locations")
-            # Check what libraries exist
-            execute_process(COMMAND ls -la /usr/local/lib/libnghttp2* OUTPUT_VARIABLE NGHTTP2_LIBS ERROR_QUIET)
-            message(STATUS "nghttp2 libraries in /usr/local/lib/:\n${NGHTTP2_LIBS}")
+            message(STATUS "nghttp2_asio library not found")
         endif()
     endif()
     
     # Debug: Show what we found
-    message(STATUS "NGHTTP2_ASIO_LIBRARIES: ${NGHTTP2_ASIO_LIBRARIES}")
-    message(STATUS "NGHTTP2_ASIO_INCLUDE_DIRS: ${NGHTTP2_ASIO_INCLUDE_DIRS}")
+    message(STATUS "DEBUG: NGHTTP2_ASIO_LIBRARIES: ${NGHTTP2_ASIO_LIBRARIES}")
+    message(STATUS "DEBUG: NGHTTP2_ASIO_INCLUDE_DIRS: ${NGHTTP2_ASIO_INCLUDE_DIRS}")
+    message(STATUS "DEBUG: NGHTTP2_INCLUDE_DIRS (from FindNGHTTP2): ${NGHTTP2_INCLUDE_DIRS}")
+    
+    # If NGHTTP2_ASIO_INCLUDE_DIRS is not set but we have the library and NGHTTP2 headers, use those
+    if(NGHTTP2_ASIO_LIBRARIES AND NOT NGHTTP2_ASIO_INCLUDE_DIRS AND NGHTTP2_INCLUDE_DIRS)
+        message(STATUS "Using NGHTTP2_INCLUDE_DIRS for nghttp2_asio: ${NGHTTP2_INCLUDE_DIRS}")
+        set(NGHTTP2_ASIO_INCLUDE_DIRS ${NGHTTP2_INCLUDE_DIRS})
+        set(NGHTTP2_ASIO_FOUND TRUE)
+    endif()
     
     include(FindPackageHandleStandardArgs)
     find_package_handle_standard_args(NGHTTP2_ASIO
