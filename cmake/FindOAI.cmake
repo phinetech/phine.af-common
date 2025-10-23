@@ -176,11 +176,50 @@ else()
         # Create imported targets if they don't exist
         # With structured installation, headers are under /usr/local/include/oai/
         # We set INTERFACE_INCLUDE_DIRECTORIES so transitive dependencies get the path
+        # We also set INTERFACE_LINK_LIBRARIES for transitive dependencies
+        
+        # OAI libraries depend on spdlog and fmt
+        # OAI uses spdlog in header-only mode, so prefer header-only target
+        if(NOT TARGET spdlog::spdlog AND NOT TARGET spdlog::spdlog_header_only)
+            find_package(spdlog QUIET)
+        endif()
+        
+        # Determine which spdlog target to use - prefer header-only to match OAI build
+        if(TARGET spdlog::spdlog_header_only)
+            set(SPDLOG_LINK_TARGET "spdlog::spdlog_header_only")
+        elseif(TARGET spdlog::spdlog)
+            set(SPDLOG_LINK_TARGET "spdlog::spdlog")
+        else()
+            # Fallback: find the library manually
+            find_library(SPDLOG_LIB NAMES spdlog PATHS /usr/local/lib)
+            if(SPDLOG_LIB)
+                add_library(spdlog::spdlog SHARED IMPORTED)
+                set_target_properties(spdlog::spdlog PROPERTIES
+                    IMPORTED_LOCATION "${SPDLOG_LIB}"
+                )
+                set(SPDLOG_LINK_TARGET "spdlog::spdlog")
+            endif()
+        endif()
+        
+        if(NOT TARGET fmt::fmt)
+            find_package(fmt QUIET)
+            if(NOT fmt_FOUND)
+                find_library(FMT_LIB NAMES fmt PATHS /usr/local/lib)
+                if(FMT_LIB)
+                    add_library(fmt::fmt STATIC IMPORTED)
+                    set_target_properties(fmt::fmt PROPERTIES
+                        IMPORTED_LOCATION "${FMT_LIB}"
+                    )
+                endif()
+            endif()
+        endif()
+        
         if(NOT TARGET oai::CONFIG)
             add_library(oai::CONFIG STATIC IMPORTED)
             set_target_properties(oai::CONFIG PROPERTIES
                 IMPORTED_LOCATION "${OAI_CONFIG_LIBRARY}"
                 INTERFACE_INCLUDE_DIRECTORIES "${OAI_INCLUDE_DIRS}"
+                INTERFACE_LINK_LIBRARIES "fmt::fmt"
             )
         endif()
         
@@ -189,6 +228,7 @@ else()
             set_target_properties(oai::PCF PROPERTIES
                 IMPORTED_LOCATION "${OAI_PCF_LIBRARY}"
                 INTERFACE_INCLUDE_DIRECTORIES "${OAI_INCLUDE_DIRS}"
+                INTERFACE_LINK_LIBRARIES "fmt::fmt"
             )
         endif()
         
@@ -197,6 +237,7 @@ else()
             set_target_properties(oai::COMMON_MODEL PROPERTIES
                 IMPORTED_LOCATION "${OAI_COMMON_MODEL_LIBRARY}"
                 INTERFACE_INCLUDE_DIRECTORIES "${OAI_INCLUDE_DIRS}"
+                INTERFACE_LINK_LIBRARIES "fmt::fmt"
             )
         endif()
         
@@ -205,6 +246,7 @@ else()
             set_target_properties(oai::LOGGER PROPERTIES
                 IMPORTED_LOCATION "${OAI_LOGGER_LIBRARY}"
                 INTERFACE_INCLUDE_DIRECTORIES "${OAI_INCLUDE_DIRS}"
+                INTERFACE_LINK_LIBRARIES "fmt::fmt"
             )
         endif()
         
