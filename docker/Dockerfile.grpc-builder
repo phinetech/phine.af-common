@@ -1,0 +1,47 @@
+# Dockerfile.grpc-builder
+# This file is ONLY for building the gRPC dependency.
+
+# Base image with common settings
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV IS_DOCKERFILE=1
+WORKDIR /app
+
+# Install all build dependencies for gRPC
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    autoconf \
+    libtool \
+    pkg-config \
+    git \
+    cmake \
+    libssl-dev \
+    zlib1g-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set gRPC version as an argument
+ARG GRPC_VERSION=v1.72.2
+
+RUN git clone --recurse-submodules -b ${GRPC_VERSION} --depth 1 --shallow-submodules https://github.com/grpc/grpc && \
+    cd grpc && \
+    mkdir -p cmake/build && \
+    cd cmake/build && \
+    cmake -DgRPC_INSTALL=ON \
+          -DgRPC_BUILD_TESTS=OFF \
+          -DgRPC_BUILD_CSHARP_EXT=OFF \
+          -DgRPC_BUILD_GRPC_CSHARP_PLUGIN=OFF \
+          -DgRPC_BUILD_GRPC_NODE_PLUGIN=OFF \
+          -DgRPC_BUILD_GRPC_OBJECTIVE_C_PLUGIN=OFF \
+          -DgRPC_BUILD_GRPC_PHP_PLUGIN=OFF \
+          -DgRPC_BUILD_GRPC_PYTHON_PLUGIN=OFF \
+          -DgRPC_BUILD_GRPC_RUBY_PLUGIN=OFF \
+          -DCMAKE_INSTALL_PREFIX=/usr/local \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=ON \
+          ../.. && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd /tmp && rm -rf grpc
