@@ -1,0 +1,40 @@
+# Base image with common settings
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV IS_DOCKERFILE=1
+
+WORKDIR /build
+
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install --yes --no-install-recommends \
+      build-essential \
+      libssl-dev \
+      cmake \
+      git \
+      libboost-system-dev \
+      libboost-thread-dev \
+      libboost-all-dev \
+      libspdlog-dev \
+      libyaml-cpp-dev \
+      libfmt-dev \
+      nlohmann-json3-dev \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy OAI common source
+COPY ./southbound/oai-cn5g-common-src /build/oai-cn5g-common-src
+
+# Copy the cmake files needed for building OAI CN5G common libraries
+COPY ./southbound/common/cmake/CMakeLists.oai-cn5g-common-src.txt /build/oai-cn5g-common-src/CMakeLists.txt
+COPY ./southbound/common/cmake/oai_cn5g_common_config.cmake.in /build/oai-cn5g-common-src/oai_cn5g_common_config.cmake.in
+
+# Build and install OAI CN5G common libraries
+RUN cd /build/oai-cn5g-common-src && \
+    mkdir -p build && \
+    cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig
