@@ -8,15 +8,41 @@ option(USE_SYSTEM_GRPC "Use system installed gRPC" OFF)
 
 if(USE_SYSTEM_GRPC)
     # Try to find system-installed gRPC
-    find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin REQUIRED)
-    find_program(GRPC_PYTHON_PLUGIN grpc_python_plugin)
+    find_program(GRPC_CPP_PLUGIN 
+        NAMES grpc_cpp_plugin
+        PATHS /usr/bin /usr/local/bin
+        REQUIRED
+    )
+    find_program(GRPC_PYTHON_PLUGIN 
+        NAMES grpc_python_plugin
+        PATHS /usr/bin /usr/local/bin
+    )
     
-    find_library(GRPC_LIBRARY NAMES grpc REQUIRED)
-    find_library(GRPC_GRPC++_LIBRARY NAMES grpc++ REQUIRED)
-    find_library(GRPC_GRPC++_REFLECTION_LIBRARY NAMES grpc++_reflection)
-    find_library(GRPC_GPR_LIBRARY NAMES gpr)
+    # Debian packages use different library names
+    find_library(GRPC_LIBRARY 
+        NAMES grpc libgrpc.so libgrpc.a
+        PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu
+        REQUIRED
+    )
+    find_library(GRPC_GRPC++_LIBRARY 
+        NAMES grpc++ libgrpc++.so libgrpc++.a
+        PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu
+        REQUIRED
+    )
+    find_library(GRPC_GRPC++_REFLECTION_LIBRARY 
+        NAMES grpc++_reflection libgrpc++_reflection.so libgrpc++_reflection.a
+        PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu
+    )
+    find_library(GRPC_GPR_LIBRARY 
+        NAMES gpr libgpr.so libgpr.a
+        PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu
+    )
     
-    find_path(GRPC_INCLUDE_DIR grpc/grpc.h REQUIRED)
+    find_path(GRPC_INCLUDE_DIR 
+        NAMES grpc/grpc.h
+        PATHS /usr/include /usr/local/include
+        REQUIRED
+    )
     
     include(FindPackageHandleStandardArgs)
     find_package_handle_standard_args(gRPC
