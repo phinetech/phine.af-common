@@ -17,7 +17,24 @@ include_directories(
 )
 
 # Find dependencies
-find_package(spdlog REQUIRED)
+# Find spdlog - use system installation from Debian package
+if(NOT TARGET spdlog::spdlog)
+    find_path(SPDLOG_INCLUDE_DIR spdlog/spdlog.h)
+    find_library(SPDLOG_LIBRARY NAMES spdlog)
+
+    if(SPDLOG_INCLUDE_DIR AND SPDLOG_LIBRARY)
+        # Create imported target for spdlog
+        add_library(spdlog::spdlog UNKNOWN IMPORTED)
+        set_target_properties(spdlog::spdlog PROPERTIES
+            IMPORTED_LOCATION "${SPDLOG_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${SPDLOG_INCLUDE_DIR}"
+        )
+        message(STATUS "Found spdlog: ${SPDLOG_LIBRARY}")
+        message(STATUS "spdlog include: ${SPDLOG_INCLUDE_DIR}")
+    else()
+        message(FATAL_ERROR "spdlog not found. Please install libspdlog-dev")
+    endif()
+endif()
 
 # Create library
 add_library(af_common_component SHARED ${SOURCES})

@@ -5,7 +5,24 @@
 # throughout the AF microservice application.
 
 # Find required packages
-find_package(yaml-cpp REQUIRED)
+# Find yaml-cpp - use system installation from Debian package
+if(NOT TARGET yaml-cpp)
+    find_path(YAML_CPP_INCLUDE_DIR yaml-cpp/yaml.h)
+    find_library(YAML_CPP_LIBRARY NAMES yaml-cpp)
+
+    if(YAML_CPP_INCLUDE_DIR AND YAML_CPP_LIBRARY)
+        # Create imported target for yaml-cpp
+        add_library(yaml-cpp UNKNOWN IMPORTED)
+        set_target_properties(yaml-cpp PROPERTIES
+            IMPORTED_LOCATION "${YAML_CPP_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${YAML_CPP_INCLUDE_DIR}"
+        )
+        message(STATUS "Found yaml-cpp: ${YAML_CPP_LIBRARY}")
+        message(STATUS "yaml-cpp include: ${YAML_CPP_INCLUDE_DIR}")
+    else()
+        message(FATAL_ERROR "yaml-cpp not found. Please install libyaml-cpp-dev")
+    endif()
+endif()
 
 # Create library
 add_library(af_config INTERFACE)
