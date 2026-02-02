@@ -45,6 +45,7 @@ endif()
 # Add implementations
 add_subdirectory(implementations/direct)
 add_subdirectory(implementations/grpc)
+add_subdirectory(adapters)
 
 # Create main communication library
 add_library(af_communication INTERFACE)
@@ -54,6 +55,7 @@ target_link_libraries(af_communication INTERFACE
     af_communication_factory
     af_direct_communication
     af_grpc_communication
+    af_transport_adapters
 )
 
 # Add gRPC implementation if available
@@ -62,7 +64,7 @@ if(TARGET af_grpc_communication AND NOT af_grpc_communication_INTERFACE_ONLY)
 endif()
 
 # Install
-install(TARGETS 
+install(TARGETS
     af_communication_interface
     af_communication_factory
     LIBRARY DESTINATION lib

@@ -41,6 +41,7 @@ target_link_libraries(af_grpc_communication
     PRIVATE
         af_cpp_utils
         gRPC::grpc++
+        gRPC::grpc++_reflection
         gRPC::grpc
         gRPC::gpr
         OpenSSL::SSL

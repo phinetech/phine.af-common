@@ -1,10 +1,10 @@
 /**
  * @file grpc_communication_service.cpp
  * @brief Implementation of the gRPC communication service
- * 
+ *
  * This file implements the GrpcCommunicationService class, which provides
  * communication between AF components using gRPC as the transport mechanism.
- * 
+ *
  * The implementation includes:
  * - A gRPC server that handles incoming messages (optional)
  * - gRPC client connections to other services
@@ -15,6 +15,7 @@
 #include "grpc_communication_service.h"
 #include "cpp_utils/error.h"
 #include <grpcpp/grpcpp.h>
+#include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <chrono>
 #include <random>
 #include <sstream>
@@ -28,7 +29,7 @@ namespace communication {
 namespace grpc {
 
 // Implementation of the internal gRPC service
-class GrpcCommunicationService::InternalGrpcServiceImpl final 
+class GrpcCommunicationService::InternalGrpcServiceImpl final
     : public af::proto::InternalCommunication::Service {
 public:
     InternalGrpcServiceImpl(GrpcCommunicationService* parent)
@@ -38,14 +39,14 @@ public:
         ::grpc::ServerContext* context,
         const af::proto::InternalMessage* request,
         af::proto::InternalMessage* response) override {
-        
+
         // Convert protobuf message to internal Message format
         MessagePtr req_msg = std::make_shared<Message>();
         req_msg->message_type = request->message_type();
         req_msg->correlation_id = request->correlation_id();
         req_msg->payload = std::vector<uint8_t>(
             request->payload().begin(), request->payload().end());
-        
+
         // Copy metadata
         for (const auto& entry : request->metadata()) {
             req_msg->metadata[entry.first] = entry.second;
@@ -53,7 +54,7 @@ public:
 
         // Process message based on registered handlers/callbacks
         MessagePtr resp_msg = nullptr;
-        
+
         // Try handlers first
         bool handled = false;
         {
@@ -72,7 +73,7 @@ public:
         }
 
         if (!handled) {
-            return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, 
+            return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED,
                 "No handler registered for message type: " + req_msg->message_type);
         }
 
@@ -86,7 +87,7 @@ public:
         response->set_message_type(resp_msg->message_type);
         response->set_correlation_id(resp_msg->correlation_id);
         response->set_payload(resp_msg->payload.data(), resp_msg->payload.size());
-        
+
         // Copy metadata
         for (const auto& entry : resp_msg->metadata) {
             (*response->mutable_metadata())[entry.first] = entry.second;
@@ -107,10 +108,10 @@ public:
     ::grpc::Status StreamMessages(
         ::grpc::ServerContext* context,
         ::grpc::ServerReaderWriter<af::proto::InternalMessage, af::proto::InternalMessage>* stream) override {
-        
+
         // For simplicity, we'll implement a basic version here
         // A full implementation would handle bidirectional streaming properly
-        
+
         af::proto::InternalMessage request;
         while (stream->Read(&request)) {
             // Convert and process message similar to SendMessage
@@ -119,14 +120,14 @@ public:
             req_msg->correlation_id = request.correlation_id();
             req_msg->payload = std::vector<uint8_t>(
                 request.payload().begin(), request.payload().end());
-            
+
             for (const auto& entry : request.metadata()) {
                 req_msg->metadata[entry.first] = entry.second;
             }
 
             // Process message and get response
             MessagePtr resp_msg = nullptr;
-            
+
             {
                 std::lock_guard<std::mutex> lock(parent_->handlers_mutex_);
                 auto handler_it = parent_->message_handlers_.find(req_msg->message_type);
@@ -153,7 +154,7 @@ public:
             response.set_message_type(resp_msg->message_type);
             response.set_correlation_id(resp_msg->correlation_id);
             response.set_payload(resp_msg->payload.data(), resp_msg->payload.size());
-            
+
             for (const auto& entry : resp_msg->metadata) {
                 (*response.mutable_metadata())[entry.first] = entry.second;
             }
@@ -169,7 +170,7 @@ public:
             }
 
             if (!stream->Write(response)) {
-                return ::grpc::Status(::grpc::StatusCode::UNAVAILABLE, 
+                return ::grpc::Status(::grpc::StatusCode::UNAVAILABLE,
                     "Failed to write response to stream");
             }
         }
@@ -195,7 +196,7 @@ bool GrpcCommunicationService::initialize(
     const std::string& service_name,
     const std::unordered_map<std::string, std::string>& config,
     bool client_only) {
-    
+
     service_name_ = service_name;
     client_only_ = client_only;
 
@@ -255,6 +256,9 @@ bool GrpcCommunicationService::initialize(
         builder.SetSyncServerOption(::grpc::ServerBuilder::SyncServerOption::MAX_POLLERS, max_threads);
     }
 
+    // Enable reflection
+    ::grpc::reflection::InitProtoReflectionServerBuilderPlugin();
+
     // Build the server
     server_ = builder.BuildAndStart();
     if (!server_) {
@@ -272,7 +276,7 @@ bool GrpcCommunicationService::initialize(
 MessagePtr GrpcCommunicationService::send_request(
     const std::string& destination,
     const MessagePtr& message) {
-    
+
     if (!message) {
         return nullptr;
     }
@@ -334,7 +338,7 @@ bool GrpcCommunicationService::send_async(
     const std::string& destination,
     const MessagePtr& message,
     const MessageCallback& callback) {
-    
+
     if (!message) {
         return false;
     }
@@ -354,7 +358,7 @@ bool GrpcCommunicationService::send_async(
 bool GrpcCommunicationService::register_handler(
     const std::string& message_type,
     const MessageHandlerPtr& handler) {
-    
+
     if (!handler) {
         return false;
     }
@@ -372,7 +376,7 @@ bool GrpcCommunicationService::register_handler(
 bool GrpcCommunicationService::register_callback(
     const std::string& message_type,
     const MessageCallback& callback) {
-    
+
     if (!callback) {
         return false;
     }
@@ -391,7 +395,7 @@ std::string GrpcCommunicationService::subscribe(
     const std::string& source,
     const std::string& message_type,
     const MessageCallback& callback) {
-    
+
     if (!callback) {
         return "";
     }
@@ -419,7 +423,7 @@ std::string GrpcCommunicationService::subscribe(
 
 bool GrpcCommunicationService::unsubscribe(const std::string& subscription_id) {
     std::lock_guard<std::mutex> lock(subscriptions_mutex_);
-    
+
     auto it = subscriptions_.find(subscription_id);
     if (it == subscriptions_.end()) {
         return false;
@@ -497,9 +501,9 @@ bool GrpcCommunicationService::stop() {
 
 GrpcCommunicationService::ClientConnection& GrpcCommunicationService::get_or_create_connection(
     const std::string& destination) {
-    
+
     std::lock_guard<std::mutex> lock(connections_mutex_);
-    
+
     auto it = client_connections_.find(destination);
     if (it != client_connections_.end()) {
         return it->second;

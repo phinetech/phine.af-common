@@ -40,6 +40,32 @@ find_package(gRPC REQUIRED)
 # Find OpenSSL (required by gRPC)
 find_package(OpenSSL REQUIRED)
 
+# Find nlohmann_json (required by response handlers) - check for target first
+if(NOT TARGET nlohmann_json::nlohmann_json)
+    find_package(nlohmann_json QUIET)
+    if(NOT TARGET nlohmann_json::nlohmann_json)
+        message(STATUS "nlohmann_json target not found, creating fallback")
+        add_library(nlohmann_json_fallback INTERFACE IMPORTED)
+        set_target_properties(nlohmann_json_fallback PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "/usr/include"
+        )
+        add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json_fallback)
+    endif()
+endif()
+
+# Find spdlog (optional for logging in handlers) - check for target first
+if(NOT TARGET spdlog::spdlog)
+    find_package(spdlog QUIET)
+    if(NOT TARGET spdlog::spdlog)
+        message(STATUS "spdlog target not found, creating fallback")
+        add_library(spdlog_fallback INTERFACE IMPORTED)
+        set_target_properties(spdlog_fallback PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "/usr/include"
+        )
+        add_library(spdlog::spdlog ALIAS spdlog_fallback)
+    endif()
+endif()
+
 # Include helper functions for protobuf/gRPC code generation
 include(GenerateProtos)
 
@@ -51,6 +77,8 @@ add_subdirectory(di)
 add_subdirectory(communication)
 add_subdirectory(config)
 add_subdirectory(component)
+add_subdirectory(response)
+add_subdirectory(handlers)
 # add_subdirectory(logging)
 
 # Create a common library target that depends on all common components
@@ -63,6 +91,8 @@ target_link_libraries(af_common INTERFACE
     af_communication
     af_config
     af_common_component
+    af_response
+    af_handlers
     # af_logging
 )
 
@@ -75,7 +105,7 @@ target_include_directories(af_common INTERFACE
 )
 
 # Install targets - include all sub-targets needed by af_communication
-install(TARGETS 
+install(TARGETS
     af_common
     af_protos
     af_cpp_utils
@@ -88,6 +118,9 @@ install(TARGETS
     af_grpc_communication
     af_config
     af_common_component
+    af_response
+    af_handlers
+    af_transport_adapters
     EXPORT af_commonTargets
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
@@ -96,37 +129,37 @@ install(TARGETS
 )
 
 # Install headers from each component
-install(DIRECTORY 
+install(DIRECTORY
     cpp_utils/include/
     DESTINATION include
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )
 
-install(DIRECTORY 
+install(DIRECTORY
     models/include/
     DESTINATION include
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )
 
-install(DIRECTORY 
+install(DIRECTORY
     di/include/
     DESTINATION include
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )
 
-install(DIRECTORY 
+install(DIRECTORY
     communication/include/
     DESTINATION include
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )
 
-install(DIRECTORY 
+install(DIRECTORY
     config/include/
     DESTINATION include
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )
 
-install(DIRECTORY 
+install(DIRECTORY
     component/include/
     DESTINATION include
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
