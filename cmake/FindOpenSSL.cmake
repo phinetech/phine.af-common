@@ -1,6 +1,12 @@
 # FindOpenSSL.cmake
 # Finds or builds OpenSSL installation using FetchContent
 
+# Prevent infinite recursion
+if(DEFINED _FIND_OPENSSL_IN_PROGRESS)
+    return()
+endif()
+set(_FIND_OPENSSL_IN_PROGRESS TRUE)
+
 include(FetchContent)
 
 # Option to use system OpenSSL or build from source
@@ -10,31 +16,31 @@ if(USE_SYSTEM_OPENSSL)
     # Try to find system-installed OpenSSL using CMake's built-in module
     # Temporarily remove our custom path to use the system FindOpenSSL
     set(_CMAKE_MODULE_PATH_BACKUP ${CMAKE_MODULE_PATH})
-    list(REMOVE_ITEM CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
-    
+    list(FILTER CMAKE_MODULE_PATH EXCLUDE REGEX "common/cmake")
+
     # Find OpenSSL using system module
     find_package(OpenSSL QUIET)
-    
+
     # Restore module path
     set(CMAKE_MODULE_PATH ${_CMAKE_MODULE_PATH_BACKUP})
-    
+
     if(NOT OpenSSL_FOUND)
         # Manual search for OpenSSL
         find_library(OPENSSL_SSL_LIBRARY NAMES ssl libssl REQUIRED)
         find_library(OPENSSL_CRYPTO_LIBRARY NAMES crypto libcrypto REQUIRED)
-        find_path(OPENSSL_INCLUDE_DIR openssl/ssl.h 
+        find_path(OPENSSL_INCLUDE_DIR openssl/ssl.h
                   PATHS /usr/include /usr/local/include
                   REQUIRED)
-        
+
         if(OPENSSL_SSL_LIBRARY AND OPENSSL_CRYPTO_LIBRARY AND OPENSSL_INCLUDE_DIR)
             set(OpenSSL_FOUND TRUE)
             set(OPENSSL_LIBRARIES ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY})
             set(OPENSSL_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR})
-            
+
             # Try to determine version
             if(EXISTS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h")
-                file(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h" 
-                     OPENSSL_VERSION_STR 
+                file(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
+                     OPENSSL_VERSION_STR
                      REGEX "^#[ ]*define[ ]+OPENSSL_VERSION_TEXT")
                 if(OPENSSL_VERSION_STR MATCHES "OpenSSL ([0-9]+\\.[0-9]+\\.[0-9]+[a-z]?)")
                     set(OPENSSL_VERSION "${CMAKE_MATCH_1}")
@@ -46,7 +52,7 @@ if(USE_SYSTEM_OPENSSL)
         set(OPENSSL_LIBRARIES ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY})
         set(OPENSSL_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR})
     endif()
-    
+
     include(FindPackageHandleStandardArgs)
     find_package_handle_standard_args(OpenSSL
         REQUIRED_VARS
@@ -54,7 +60,7 @@ if(USE_SYSTEM_OPENSSL)
             OPENSSL_INCLUDE_DIRS
         VERSION_VAR OPENSSL_VERSION
     )
-    
+
     # Create imported targets if they don't exist
     if(OpenSSL_FOUND)
         if(NOT TARGET OpenSSL::SSL)
@@ -69,7 +75,7 @@ if(USE_SYSTEM_OPENSSL)
                 )
             endif()
         endif()
-        
+
         if(NOT TARGET OpenSSL::Crypto)
             add_library(OpenSSL::Crypto UNKNOWN IMPORTED)
             set_target_properties(OpenSSL::Crypto PROPERTIES
@@ -77,7 +83,7 @@ if(USE_SYSTEM_OPENSSL)
                 INTERFACE_INCLUDE_DIRECTORIES ${OPENSSL_INCLUDE_DIRS}
             )
         endif()
-        
+
         # Create unified OpenSSL target
         if(NOT TARGET OpenSSL::OpenSSL)
             add_library(OpenSSL::OpenSSL INTERFACE IMPORTED)
@@ -87,13 +93,13 @@ if(USE_SYSTEM_OPENSSL)
             )
         endif()
     endif()
-    
+
     mark_as_advanced(
         OPENSSL_SSL_LIBRARY
         OPENSSL_CRYPTO_LIBRARY
         OPENSSL_INCLUDE_DIR
     )
-    
+
     message(STATUS "Using system OpenSSL")
     message(STATUS "OpenSSL version: ${OPENSSL_VERSION}")
     message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIRS}")
@@ -102,11 +108,11 @@ else()
     # Build OpenSSL from source using FetchContent
     message(STATUS "Building OpenSSL from source using FetchContent...")
     message(WARNING "Building OpenSSL from source is complex and time-consuming. Consider using system OpenSSL.")
-    
+
     # Check for required build tools
     find_program(PERL_EXECUTABLE perl REQUIRED)
     find_program(MAKE_EXECUTABLE make REQUIRED)
-    
+
     # Determine platform-specific configuration
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
@@ -131,10 +137,10 @@ else()
     else()
         message(FATAL_ERROR "Unsupported platform for building OpenSSL from source")
     endif()
-    
+
     # Set installation directory
     set(OPENSSL_INSTALL_DIR ${CMAKE_BINARY_DIR}/openssl-install)
-    
+
     # Fetch OpenSSL
     FetchContent_Declare(
         openssl
@@ -143,15 +149,15 @@ else()
         GIT_SHALLOW    TRUE
         GIT_PROGRESS   TRUE
     )
-    
+
     FetchContent_GetProperties(openssl)
     if(NOT openssl_POPULATED)
         FetchContent_Populate(openssl)
-        
+
         # Configure and build OpenSSL
         message(STATUS "Configuring OpenSSL...")
         execute_process(
-            COMMAND ${PERL_EXECUTABLE} Configure 
+            COMMAND ${PERL_EXECUTABLE} Configure
                 ${OPENSSL_CONFIGURE_TARGET}
                 --prefix=${OPENSSL_INSTALL_DIR}
                 --openssldir=${OPENSSL_INSTALL_DIR}
@@ -162,11 +168,11 @@ else()
             OUTPUT_VARIABLE OPENSSL_CONFIGURE_OUTPUT
             ERROR_VARIABLE OPENSSL_CONFIGURE_ERROR
         )
-        
+
         if(NOT OPENSSL_CONFIGURE_RESULT EQUAL 0)
             message(FATAL_ERROR "OpenSSL configuration failed:\n${OPENSSL_CONFIGURE_ERROR}")
         endif()
-        
+
         message(STATUS "Building OpenSSL (this may take several minutes)...")
         execute_process(
             COMMAND ${MAKE_EXECUTABLE} -j${CMAKE_BUILD_PARALLEL_LEVEL}
@@ -175,11 +181,11 @@ else()
             OUTPUT_QUIET
             ERROR_VARIABLE OPENSSL_BUILD_ERROR
         )
-        
+
         if(NOT OPENSSL_BUILD_RESULT EQUAL 0)
             message(FATAL_ERROR "OpenSSL build failed:\n${OPENSSL_BUILD_ERROR}")
         endif()
-        
+
         message(STATUS "Installing OpenSSL...")
         execute_process(
             COMMAND ${MAKE_EXECUTABLE} install_sw install_ssldirs
@@ -188,43 +194,43 @@ else()
             OUTPUT_QUIET
             ERROR_VARIABLE OPENSSL_INSTALL_ERROR
         )
-        
+
         if(NOT OPENSSL_INSTALL_RESULT EQUAL 0)
             message(FATAL_ERROR "OpenSSL installation failed:\n${OPENSSL_INSTALL_ERROR}")
         endif()
     endif()
-    
+
     # Set OpenSSL paths
     set(OPENSSL_INCLUDE_DIRS ${OPENSSL_INSTALL_DIR}/include)
     set(OPENSSL_SSL_LIBRARY ${OPENSSL_INSTALL_DIR}/lib/libssl.a)
     set(OPENSSL_CRYPTO_LIBRARY ${OPENSSL_INSTALL_DIR}/lib/libcrypto.a)
     set(OPENSSL_LIBRARIES ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY})
-    
+
     # Create imported targets
     add_library(OpenSSL::Crypto STATIC IMPORTED)
     set_target_properties(OpenSSL::Crypto PROPERTIES
         IMPORTED_LOCATION ${OPENSSL_CRYPTO_LIBRARY}
         INTERFACE_INCLUDE_DIRECTORIES ${OPENSSL_INCLUDE_DIRS}
     )
-    
+
     add_library(OpenSSL::SSL STATIC IMPORTED)
     set_target_properties(OpenSSL::SSL PROPERTIES
         IMPORTED_LOCATION ${OPENSSL_SSL_LIBRARY}
         INTERFACE_INCLUDE_DIRECTORIES ${OPENSSL_INCLUDE_DIRS}
         INTERFACE_LINK_LIBRARIES OpenSSL::Crypto
     )
-    
+
     # Create unified OpenSSL target
     add_library(OpenSSL::OpenSSL INTERFACE IMPORTED)
     set_target_properties(OpenSSL::OpenSSL PROPERTIES
         INTERFACE_LINK_LIBRARIES "OpenSSL::SSL;OpenSSL::Crypto"
         INTERFACE_INCLUDE_DIRECTORIES ${OPENSSL_INCLUDE_DIRS}
     )
-    
+
     # Mark as found
     set(OpenSSL_FOUND TRUE)
     set(OPENSSL_VERSION "3.0.12")
-    
+
     message(STATUS "OpenSSL built from source")
     message(STATUS "OpenSSL version: ${OPENSSL_VERSION}")
     message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIRS}")

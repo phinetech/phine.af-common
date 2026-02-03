@@ -4,11 +4,18 @@
 # communication service. It depends on the gRPC and protobuf libraries
 # and includes the generated protobuf/gRPC code.
 
-# Find required packages
+# Find required packages - only if not already found by parent
 find_package(gRPC QUIET)
-find_package(Protobuf REQUIRED)
-# Find OpenSSL (required by gRPC)
-find_package(OpenSSL REQUIRED)
+
+# Skip Protobuf find if already configured by parent CMakeLists
+if(NOT Protobuf_FOUND AND NOT TARGET protobuf::libprotobuf)
+    find_package(Protobuf REQUIRED)
+endif()
+
+# Find OpenSSL (required by gRPC) - only if not already found
+if(NOT OpenSSL_FOUND)
+    find_package(OpenSSL REQUIRED)
+endif()
 
 if(NOT gRPC_FOUND)
     message(STATUS "gRPC not found - gRPC communication implementation will not be built")
