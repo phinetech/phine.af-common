@@ -45,7 +45,7 @@ using Port = uint16_t;
 struct PortRange {
     Port from;
     Port to;
-    
+
     bool operator==(const PortRange& other) const {
         return from == other.from && to == other.to;
     }
@@ -57,11 +57,11 @@ struct PortRange {
 struct PortsSpec {
     std::vector<PortRange> ranges;
     std::vector<Port> ports;
-    
+
     bool is_empty() const {
         return ranges.empty() && ports.empty();
     }
-    
+
     bool operator==(const PortsSpec& other) const {
         return ranges == other.ranges && ports == other.ports;
     }
@@ -74,7 +74,7 @@ struct DeviceIpv4Addr {
     Ipv4Addr public_address;
     std::optional<Ipv4Addr> private_address;
     std::optional<Port> public_port;
-    
+
     bool operator==(const DeviceIpv4Addr& other) const {
         return public_address == other.public_address &&
                private_address == other.private_address &&
@@ -91,12 +91,12 @@ struct QodDevice {
     std::optional<std::string> network_access_identifier; // user@domain format
     std::optional<DeviceIpv4Addr> ipv4_address;
     std::optional<Ipv6Addr> ipv6_address;
-    
+
     bool is_empty() const {
-        return !phone_number && !network_access_identifier && 
+        return !phone_number && !network_access_identifier &&
                !ipv4_address && !ipv6_address;
     }
-    
+
     bool operator==(const QodDevice& other) const {
         return phone_number == other.phone_number &&
                network_access_identifier == other.network_access_identifier &&
@@ -111,11 +111,11 @@ struct QodDevice {
 struct ApplicationServer {
     std::optional<std::string> ipv4_address;  // Can include CIDR notation
     std::optional<std::string> ipv6_address;  // Can include prefix length
-    
+
     bool is_empty() const {
         return !ipv4_address && !ipv6_address;
     }
-    
+
     bool operator==(const ApplicationServer& other) const {
         return ipv4_address == other.ipv4_address &&
                ipv6_address == other.ipv6_address;
@@ -131,22 +131,22 @@ struct SinkCredential {
         ACCESSTOKEN,
         REFRESHTOKEN
     };
-    
+
     CredentialType credential_type;
-    
+
     // For ACCESSTOKEN type
     std::optional<std::string> access_token;
     std::optional<std::chrono::system_clock::time_point> access_token_expires_utc;
     std::optional<std::string> access_token_type;  // "bearer"
-    
+
     // For REFRESHTOKEN type (not used in current version)
     std::optional<std::string> refresh_token;
     std::optional<std::string> refresh_token_endpoint;
-    
+
     // For PLAIN type (not used in current version)
     std::optional<std::string> identifier;
     std::optional<std::string> secret;
-    
+
     bool operator==(const SinkCredential& other) const {
         return credential_type == other.credential_type &&
                access_token == other.access_token &&
@@ -160,15 +160,15 @@ struct SinkCredential {
  */
 struct QosProfileMapping {
     int fiveqi;                          // 5G QoS Identifier
-    std::optional<int> priority_level;   // Priority level (1-127)
+    std::optional<int> priority_level;   // Priority level (1-16 per 3GPP TS 29.514 ReservPriority)
     std::optional<int> packet_delay_budget; // In milliseconds
     std::optional<double> packet_error_rate; // Error rate (e.g., 10^-2)
     std::optional<int> max_data_burst_volume; // In bytes
     bool is_gbr;                         // Guaranteed Bit Rate
-    std::optional<int> guaranteed_uplink_rate;   // In kbps
-    std::optional<int> guaranteed_downlink_rate; // In kbps
-    std::optional<int> max_uplink_rate;          // In kbps
-    std::optional<int> max_downlink_rate;        // In kbps
+    std::optional<std::string> guaranteed_uplink_rate;   // BitRate format: "<value> <unit>" (e.g., "64 Kbps")
+    std::optional<std::string> guaranteed_downlink_rate; // BitRate format: "<value> <unit>" (e.g., "64 Kbps")
+    std::optional<std::string> max_uplink_rate;          // BitRate format: "<value> <unit>" (e.g., "128 Kbps")
+    std::optional<std::string> max_downlink_rate;        // BitRate format: "<value> <unit>" (e.g., "128 Kbps")
 };
 
 /**
@@ -179,41 +179,41 @@ struct QodSession {
     // Session identification
     std::string session_id;                           // UUID format
     std::string api_consumer_id;                      // ID of the API consumer who created the session
-    
+
     // Device and application information
     std::optional<QodDevice> device;                  // Device identifier(s)
     std::optional<QodDevice> device_response;         // Single device identifier returned in response
     ApplicationServer application_server;              // Application server endpoint
-    
+
     // Port specifications
     std::optional<PortsSpec> device_ports;            // Device-side ports
     std::optional<PortsSpec> application_server_ports; // Server-side ports
-    
+
     // QoS profile and status
     std::string qos_profile;                          // QoS profile name (e.g., "QOS_L", "QOS_E")
     std::optional<QosProfileMapping> qos_profile_mapping;      // Mapped QoS parameters
     QosStatus qos_status;                             // Current session status
     std::optional<StatusInfo> status_info;            // Additional status information
-    
+
     // Timing information
     std::chrono::seconds duration;                    // Requested or actual duration
     std::optional<std::chrono::system_clock::time_point> started_at;  // When session became AVAILABLE
     std::optional<std::chrono::system_clock::time_point> expires_at;  // When session will/did expire
     std::chrono::system_clock::time_point created_at; // When session was created
-    
+
     // Notification configuration
     std::optional<std::string> sink;                  // Notification endpoint URL
     std::optional<SinkCredential> sink_credential;    // Authentication for notifications
-    
+
     // PCF integration
     std::optional<std::string> pcf_session_id;        // PCF application session ID
     std::optional<std::string> pcf_transaction_id;    // PCF transaction correlation
-    
+
     // Internal state management
     std::optional<Supi> ue_supi;                      // UE SUPI if resolved
     std::optional<std::string> pdu_session_id;        // Associated PDU session if identified
     std::string error_message;                        // Error details if any
-    
+
     bool operator==(const QodSession& other) const {
         return session_id == other.session_id;
     }
@@ -264,14 +264,14 @@ public:
             default: return "UNKNOWN";
         }
     }
-    
+
     static QosStatus string_to_qos_status(const std::string& str) {
         if (str == "REQUESTED") return QosStatus::REQUESTED;
         if (str == "AVAILABLE") return QosStatus::AVAILABLE;
         if (str == "UNAVAILABLE") return QosStatus::UNAVAILABLE;
         return QosStatus::UNAVAILABLE; // Default
     }
-    
+
     static std::string status_info_to_string(StatusInfo info) {
         switch (info) {
             case StatusInfo::DURATION_EXPIRED: return "DURATION_EXPIRED";
@@ -281,7 +281,7 @@ public:
             default: return "";
         }
     }
-    
+
     static StatusInfo string_to_status_info(const std::string& str) {
         if (str == "DURATION_EXPIRED") return StatusInfo::DURATION_EXPIRED;
         if (str == "NETWORK_TERMINATED") return StatusInfo::NETWORK_TERMINATED;
