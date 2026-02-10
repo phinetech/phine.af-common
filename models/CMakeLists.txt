@@ -13,6 +13,7 @@ target_include_directories(af_models INTERFACE
 
 target_link_libraries(af_models INTERFACE
     af_cpp_utils
+    nlohmann_json::nlohmann_json
 )
 
 # Install headers
