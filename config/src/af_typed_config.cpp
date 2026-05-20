@@ -246,6 +246,7 @@ AppConfig load_app_config(const std::string& path) {
 
     if (root["pcf_handler"]) {
         const auto pcf_handler = root["pcf_handler"];
+        config.pcf_handler.enabled = read_or<bool>(pcf_handler, "enabled", config.pcf_handler.enabled);
         config.pcf_handler.pcf = decode_pcf_connection(pcf_handler, config.pcf_handler.pcf);
         config.pcf_handler.logging = decode_logging(pcf_handler["logging"], config.pcf_handler.logging);
         config.pcf_handler.communication = decode_communication(
@@ -260,16 +261,6 @@ AppConfig load_app_config(const std::string& path) {
 
 void validate(const AppConfig& config) {
     validate_endpoint(config.af_core.communication.listen, "af_core.communication.listen");
-    validate_endpoint(config.pcf_handler.communication.listen, "pcf_handler.communication.listen");
-
-    if (config.pcf_handler.communication.kind != CommunicationKind::Direct &&
-        !config.pcf_handler.communication.remote.has_value()) {
-        throw std::runtime_error("pcf_handler.communication.remote must be configured for non-direct communication");
-    }
-
-    if (config.pcf_handler.communication.remote.has_value()) {
-        validate_endpoint(*config.pcf_handler.communication.remote, "pcf_handler.communication.remote");
-    }
 
     if (config.af_core.qod.min_session_duration <= std::chrono::seconds::zero()) {
         throw std::runtime_error("af_core.qod.min_session_duration must be greater than 0");
@@ -283,12 +274,26 @@ void validate(const AppConfig& config) {
         throw std::runtime_error("af_core.qod.session_cleanup_interval must be greater than 0");
     }
 
-    if (config.pcf_handler.pcf.base_url.empty()) {
-        throw std::runtime_error("pcf_handler.pcf.base_url must not be empty");
-    }
+    if (config.pcf_handler.enabled) {
 
-    if (config.pcf_handler.pcf.api_version.empty()) {
-        throw std::runtime_error("pcf_handler.pcf.api_version must not be empty");
+        validate_endpoint(config.pcf_handler.communication.listen, "pcf_handler.communication.listen");
+
+        if (config.pcf_handler.communication.kind != CommunicationKind::Direct &&
+            !config.pcf_handler.communication.remote.has_value()) {
+            throw std::runtime_error("pcf_handler.communication.remote must be configured for non-direct communication");
+        }
+
+        if (config.pcf_handler.communication.remote.has_value()) {
+            validate_endpoint(*config.pcf_handler.communication.remote, "pcf_handler.communication.remote");
+        }
+
+        if (config.pcf_handler.pcf.base_url.empty()) {
+            throw std::runtime_error("pcf_handler.pcf.base_url must not be empty");
+        }
+
+        if (config.pcf_handler.pcf.api_version.empty()) {
+            throw std::runtime_error("pcf_handler.pcf.api_version must not be empty");
+        }
     }
 }
 

@@ -60,6 +60,7 @@ struct AfCoreConfig {
 };
 
 struct PcfHandlerConfig {
+    bool enabled{true};
     PcfConnectionConfig pcf{};
     LoggingConfig logging{spdlog::level::info, true, false, "/app/logs/pcf_handler.log"};
     CommunicationConfig communication{CommunicationKind::Grpc, {"0.0.0.0", 50055}, EndpointConfig{"af_core", 50051}, false};
