@@ -66,9 +66,19 @@ struct PcfHandlerConfig {
     CommunicationConfig communication{CommunicationKind::Grpc, {"0.0.0.0", 50055}, EndpointConfig{"af_core", 50051}, false};
 };
 
+struct NefHandlerConfig {
+    bool enabled{false};
+};
+
+struct UdrHandlerConfig {
+    bool enabled{false};
+};
+
 struct AppConfig {
     AfCoreConfig af_core{};
     PcfHandlerConfig pcf_handler{};
+    NefHandlerConfig nef_handler{};
+    UdrHandlerConfig udr_handler{};
 };
 
 inline std::string port_to_string(std::uint16_t port) {

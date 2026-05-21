@@ -256,6 +256,16 @@ AppConfig load_app_config(const std::string& path) {
             "core_port");
     }
 
+    if (root["nef_handler"]) {
+        const auto nef_handler = root["nef_handler"];
+        config.nef_handler.enabled = read_or<bool>(nef_handler, "enabled", config.nef_handler.enabled);
+    }
+
+    if (root["udr_handler"]) {
+        const auto udr_handler = root["udr_handler"];
+        config.udr_handler.enabled = read_or<bool>(udr_handler, "enabled", config.udr_handler.enabled);
+    }
+
     return config;
 }
 
