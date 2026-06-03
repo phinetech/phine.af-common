@@ -14,7 +14,23 @@ if(USE_SYSTEM_NGHTTP2)
         pkg_check_modules(NGHTTP2 libnghttp2)
         pkg_check_modules(NGHTTP2_ASIO libnghttp2_asio)
     endif()
-    
+
+    # pkg-config populates NGHTTP2_LIBRARIES with bare names (e.g. "nghttp2"),
+    # not absolute paths. Using a bare name as IMPORTED_LOCATION below makes
+    # CMake emit it as a Make dependency, producing errors like
+    # "No rule to make target 'nghttp2'". Resolve a full path here.
+    if(NGHTTP2_FOUND)
+        find_library(NGHTTP2_LIBRARY_FULL
+            NAMES nghttp2 libnghttp2
+            HINTS ${NGHTTP2_LIBRARY_DIRS} ${NGHTTP2_LIBDIR}
+        )
+        if(NGHTTP2_LIBRARY_FULL)
+            set(NGHTTP2_LIBRARIES ${NGHTTP2_LIBRARY_FULL})
+        elseif(NGHTTP2_LINK_LIBRARIES)
+            set(NGHTTP2_LIBRARIES ${NGHTTP2_LINK_LIBRARIES})
+        endif()
+    endif()
+
     # If pkg-config didn't find it, try manual search
     if(NOT NGHTTP2_FOUND)
         find_library(NGHTTP2_LIBRARY NAMES nghttp2 libnghttp2 REQUIRED)

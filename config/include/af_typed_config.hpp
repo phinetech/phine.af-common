@@ -16,7 +16,8 @@ namespace config {
 
 enum class CommunicationKind {
     Grpc,
-    Direct
+    Direct,
+    Http
 };
 
 struct EndpointConfig {
@@ -36,6 +37,10 @@ struct CommunicationConfig {
     EndpointConfig listen{"0.0.0.0", 50051};
     std::optional<EndpointConfig> remote;
     bool client_only{false};
+    // HTTP-specific fields (used when kind == Http)
+    std::string base_path;           ///< URL path prefix, e.g. "/af/v1"
+    bool use_tls{false};             ///< Enable TLS (h2 vs h2c)
+    std::uint32_t timeout_ms{5000};  ///< Request timeout in milliseconds
 };
 
 struct PcfConnectionConfig {
@@ -55,7 +60,7 @@ struct QodConfig {
 
 struct AfCoreConfig {
     LoggingConfig logging{spdlog::level::info, true, false, "/app/logs/af_core.log"};
-    CommunicationConfig communication{CommunicationKind::Grpc, {"0.0.0.0", 50051}, std::nullopt, false};
+    CommunicationConfig communication{CommunicationKind::Grpc, {"0.0.0.0", 50051}, std::nullopt, false, "", false, 5000};
     QodConfig qod{};
 };
 
@@ -63,7 +68,7 @@ struct PcfHandlerConfig {
     bool enabled{true};
     PcfConnectionConfig pcf{};
     LoggingConfig logging{spdlog::level::info, true, false, "/app/logs/pcf_handler.log"};
-    CommunicationConfig communication{CommunicationKind::Grpc, {"0.0.0.0", 50055}, EndpointConfig{"af_core", 50051}, false};
+    CommunicationConfig communication{CommunicationKind::Grpc, {"0.0.0.0", 50055}, EndpointConfig{"af_core", 50051}, false, "", false, 5000};
 };
 
 struct NefHandlerConfig {

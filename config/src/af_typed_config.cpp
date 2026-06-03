@@ -111,6 +111,15 @@ CommunicationConfig decode_communication(
             legacy_remote_port_key);
     }
 
+    // HTTP-specific fields
+    if (node["base_path"]) {
+        defaults.base_path = node["base_path"].as<std::string>();
+    }
+    defaults.use_tls = read_or<bool>(node, "use_tls", defaults.use_tls);
+    if (node["timeout_ms"]) {
+        defaults.timeout_ms = node["timeout_ms"].as<std::uint32_t>();
+    }
+
     return defaults;
 }
 
@@ -170,6 +179,8 @@ std::string to_string(CommunicationKind kind) {
             return "grpc";
         case CommunicationKind::Direct:
             return "direct";
+        case CommunicationKind::Http:
+            return "http";
     }
 
     throw std::runtime_error("Unsupported communication kind");
@@ -183,6 +194,10 @@ CommunicationKind communication_kind_from_string(const std::string& value) {
 
     if (normalized == "direct") {
         return CommunicationKind::Direct;
+    }
+
+    if (normalized == "http" || normalized == "http2") {
+        return CommunicationKind::Http;
     }
 
     throw std::runtime_error("Unsupported communication kind: " + value);
@@ -228,6 +243,10 @@ std::string resolve_destination(
     std::string host = endpoint.host;
     if (host.empty() || host == "0.0.0.0") {
         host = direct_service_name;
+    }
+
+    if (kind == CommunicationKind::Http) {
+        return "http://" + host + ":" + std::to_string(endpoint.port);
     }
 
     return host + ":" + std::to_string(endpoint.port);

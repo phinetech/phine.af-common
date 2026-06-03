@@ -32,6 +32,12 @@ target_include_directories(af_communication_factory PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
+# Add implementations
+add_subdirectory(implementations/direct)
+add_subdirectory(implementations/grpc)
+add_subdirectory(implementations/http)
+add_subdirectory(adapters)
+
 target_link_libraries(af_communication_factory PUBLIC
     af_communication_interface
     af_direct_communication
@@ -42,10 +48,10 @@ if(TARGET af_grpc_communication)
     target_link_libraries(af_communication_factory PUBLIC af_grpc_communication)
 endif()
 
-# Add implementations
-add_subdirectory(implementations/direct)
-add_subdirectory(implementations/grpc)
-add_subdirectory(adapters)
+# Add HTTP implementation if available
+if(TARGET af_http_communication)
+    target_link_libraries(af_communication_factory PUBLIC af_http_communication)
+endif()
 
 # Create main communication library
 add_library(af_communication INTERFACE)
@@ -54,13 +60,17 @@ target_link_libraries(af_communication INTERFACE
     af_communication_interface
     af_communication_factory
     af_direct_communication
-    af_grpc_communication
     af_transport_adapters
 )
 
 # Add gRPC implementation if available
 if(TARGET af_grpc_communication AND NOT af_grpc_communication_INTERFACE_ONLY)
     target_link_libraries(af_communication INTERFACE af_grpc_communication)
+endif()
+
+# Add HTTP implementation if available
+if(TARGET af_http_communication AND NOT af_http_communication_INTERFACE_ONLY)
+    target_link_libraries(af_communication INTERFACE af_http_communication)
 endif()
 
 # Install
