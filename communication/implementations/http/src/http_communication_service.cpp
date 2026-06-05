@@ -419,32 +419,46 @@ MessagePtr HttpCommunicationService::deserialize_message(const std::string& json
 HttpServerResponse HttpCommunicationService::handle_internal_message(const HttpRequest& request) {
     HttpServerResponse response;
 
+    tlog().debug("handle_internal_message: received {} {} ({} body byte(s))",
+                 request.method, request.path, request.body.size());
+
     if (request.method != "POST") {
+        tlog().warn("handle_internal_message: method {} not allowed", request.method);
         response.status_code = 405;
         response.body = R"({"error": "Method Not Allowed"})";
         return response;
     }
 
+    tlog().trace("handle_internal_message: deserializing message body");
     // Deserialize inbound message
     auto message = deserialize_message(request.body);
     if (!message) {
+        tlog().error("handle_internal_message: failed to deserialize message");
         response.status_code = 400;
         response.body = R"({"error": "Invalid message format"})";
         return response;
     }
 
+    tlog().debug("handle_internal_message: dispatching message_type='{}' correlation_id='{}'",
+                 message->message_type, message->correlation_id);
+
     // Dispatch to handler
     auto result = dispatch_to_handler(message);
 
     if (result) {
+        tlog().debug("handle_internal_message: handler returned response message_type='{}'",
+                     result->message_type);
         response.status_code = 200;
         response.body = serialize_message(result);
     } else {
+        tlog().error("handle_internal_message: handler returned null response");
         response.status_code = 500;
         response.body = R"({"error": "Handler returned no response"})";
     }
 
     response.headers["content-type"] = "application/json";
+    tlog().debug("handle_internal_message: returning response status={} ({} body byte(s))",
+                 response.status_code, response.body.size());
     return response;
 }
 

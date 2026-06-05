@@ -222,6 +222,7 @@ void Http2ServerTransport::handle_connection(std::shared_ptr<ConnectionSession> 
 
 void Http2ServerTransport::read_from_connection(std::shared_ptr<ConnectionSession> conn) {
     if (!conn->active || !conn->socket.is_open()) {
+        tlog().trace("read_from_connection: connection not active or socket closed");
         return;
     }
 
@@ -243,6 +244,9 @@ void Http2ServerTransport::read_from_connection(std::shared_ptr<ConnectionSessio
 
             // Feed data to nghttp2
             std::lock_guard<std::mutex> lock(conn->mutex);
+            tlog().trace("read_from_connection: feeding {} byte(s) to nghttp2_session_mem_recv",
+                         bytes_read);
+
             ssize_t rv = nghttp2_session_mem_recv(
                 conn->session, buffer->data(), bytes_read);
 
@@ -253,12 +257,19 @@ void Http2ServerTransport::read_from_connection(std::shared_ptr<ConnectionSessio
                 return;
             }
 
+            tlog().trace("read_from_connection: nghttp2_session_mem_recv consumed {} byte(s)", rv);
+
             // Flush any pending outbound data
-            flush_connection(conn);
+            tlog().trace("read_from_connection: flushing pending outbound data");
+            bool flush_ok = flush_connection(conn);
+            tlog().trace("read_from_connection: flush_connection returned {}", flush_ok);
 
             // Continue reading
             if (conn->active && running_) {
                 read_from_connection(conn);
+            } else {
+                tlog().debug("read_from_connection: not continuing (active={} running={})",
+                             conn->active, running_);
             }
         });
 }
@@ -317,34 +328,40 @@ bool Http2ServerTransport::submit_response(
     int32_t stream_id,
     const HttpServerResponse& response) {
 
-    // Build response headers
-    std::string status_str = std::to_string(response.status_code);
+    // Build response headers in an owning container first to avoid dangling pointers.
+    // nghttp2_submit_response uses NGHTTP2_NV_FLAG_NONE so it copies the bytes, but
+    // the name/value pointers must stay valid until that call returns.
+    std::vector<std::pair<std::string, std::string>> all_headers;
+    all_headers.reserve(1 + response.headers.size() + 1);
 
-    std::vector<nghttp2_nv> nva;
-    auto make_nv = [](const std::string& name, const std::string& value) {
-        nghttp2_nv nv;
-        nv.name = (uint8_t*)name.c_str();
-        nv.namelen = name.size();
-        nv.value = (uint8_t*)value.c_str();
-        nv.valuelen = value.size();
-        nv.flags = NGHTTP2_NV_FLAG_NO_COPY_NAME | NGHTTP2_NV_FLAG_NO_COPY_VALUE;
-        return nv;
-    };
+    // Pseudo-header
+    all_headers.emplace_back(":status", std::to_string(response.status_code));
 
-    nva.push_back(make_nv(":status", status_str));
-
-    // Add headers
+    // Regular headers
     bool has_content_type = false;
     for (const auto& [key, value] : response.headers) {
-        nva.push_back(make_nv(key, value));
+        all_headers.emplace_back(key, value);
         if (key == "content-type") {
             has_content_type = true;
         }
     }
 
-    std::string content_type = "application/json";
+    // Add default content-type if body present and not already set
     if (!has_content_type && !response.body.empty()) {
-        nva.push_back(make_nv("content-type", content_type));
+        all_headers.emplace_back("content-type", "application/json");
+    }
+
+    // Build nghttp2_nv array from the owning container
+    std::vector<nghttp2_nv> nva;
+    nva.reserve(all_headers.size());
+    for (const auto& [name, value] : all_headers) {
+        nghttp2_nv nv;
+        nv.name = reinterpret_cast<uint8_t*>(const_cast<char*>(name.c_str()));
+        nv.namelen = name.size();
+        nv.value = reinterpret_cast<uint8_t*>(const_cast<char*>(value.c_str()));
+        nv.valuelen = value.size();
+        nv.flags = NGHTTP2_NV_FLAG_NONE;
+        nva.push_back(nv);
     }
 
     tlog().debug("submit_response: stream_id={} status={} ({} body byte(s))",
@@ -426,10 +443,15 @@ int Http2ServerTransport::on_begin_headers_callback(
 
     auto* sud = static_cast<SessionUserData*>(user_data);
 
+    tlog().trace("on_begin_headers: frame_type={} stream_id={} category={}",
+                 static_cast<int>(frame->hd.type), frame->hd.stream_id,
+                 frame->hd.type == NGHTTP2_HEADERS ? static_cast<int>(frame->headers.cat) : -1);
+
     if (frame->hd.type == NGHTTP2_HEADERS &&
         frame->headers.cat == NGHTTP2_HCAT_REQUEST) {
         // New request stream
-        std::lock_guard<std::mutex> lock(sud->conn->mutex);
+        // NOTE: conn->mutex is already held by read_from_connection caller
+        tlog().debug("on_begin_headers: new request on stream_id={}", frame->hd.stream_id);
         sud->conn->pending_requests[frame->hd.stream_id] = HttpRequest{};
         sud->conn->pending_requests[frame->hd.stream_id].stream_id = frame->hd.stream_id;
     }
@@ -454,9 +476,13 @@ int Http2ServerTransport::on_header_callback(
     std::string header_name(reinterpret_cast<const char*>(name), namelen);
     std::string header_value(reinterpret_cast<const char*>(value), valuelen);
 
-    std::lock_guard<std::mutex> lock(sud->conn->mutex);
+    tlog().trace("on_header: stream_id={} {}: {}",
+                 frame->hd.stream_id, header_name, header_value);
+
+    // NOTE: conn->mutex is already held by read_from_connection caller
     auto it = sud->conn->pending_requests.find(frame->hd.stream_id);
     if (it == sud->conn->pending_requests.end()) {
+        tlog().warn("on_header: stream_id={} not found in pending_requests", frame->hd.stream_id);
         return 0;
     }
 
@@ -481,10 +507,16 @@ int Http2ServerTransport::on_data_chunk_recv_callback(
 
     auto* sud = static_cast<SessionUserData*>(user_data);
 
-    std::lock_guard<std::mutex> lock(sud->conn->mutex);
+    tlog().trace("on_data_chunk_recv: stream_id={} received {} byte(s)", stream_id, len);
+
+    // NOTE: conn->mutex is already held by read_from_connection caller
     auto it = sud->conn->pending_requests.find(stream_id);
     if (it != sud->conn->pending_requests.end()) {
         it->second.body.append(reinterpret_cast<const char*>(data), len);
+        tlog().trace("on_data_chunk_recv: stream_id={} total body size now {} byte(s)",
+                     stream_id, it->second.body.size());
+    } else {
+        tlog().warn("on_data_chunk_recv: stream_id={} not found in pending_requests", stream_id);
     }
 
     return 0;
@@ -497,27 +529,39 @@ int Http2ServerTransport::on_frame_recv_callback(
 
     auto* sud = static_cast<SessionUserData*>(user_data);
 
+    tlog().trace("on_frame_recv: frame_type={} stream_id={} flags=0x{:02x}",
+                 static_cast<int>(frame->hd.type), frame->hd.stream_id, frame->hd.flags);
+
     // When we receive END_STREAM on a HEADERS or DATA frame, the request is complete
     if ((frame->hd.type == NGHTTP2_HEADERS || frame->hd.type == NGHTTP2_DATA) &&
         (frame->hd.flags & NGHTTP2_FLAG_END_STREAM)) {
 
-        HttpRequest request;
-        {
-            std::lock_guard<std::mutex> lock(sud->conn->mutex);
-            auto it = sud->conn->pending_requests.find(frame->hd.stream_id);
-            if (it == sud->conn->pending_requests.end()) {
-                return 0;
-            }
-            request = std::move(it->second);
-            sud->conn->pending_requests.erase(it);
-        }
+        tlog().debug("on_frame_recv: END_STREAM received on stream_id={}", frame->hd.stream_id);
 
-        tlog().trace("on_frame_recv: END_STREAM on stream_id={}, request complete ({} {})",
-                     frame->hd.stream_id, request.method, request.path);
+        HttpRequest request;
+        // NOTE: conn->mutex is already held by read_from_connection caller
+        auto it = sud->conn->pending_requests.find(frame->hd.stream_id);
+        if (it == sud->conn->pending_requests.end()) {
+            tlog().warn("on_frame_recv: stream_id={} not found in pending_requests",
+                        frame->hd.stream_id);
+            return 0;
+        }
+        request = std::move(it->second);
+        sud->conn->pending_requests.erase(it);
+
+        tlog().debug("on_frame_recv: dispatching request on stream_id={} ({} {} with {} body byte(s))",
+                     frame->hd.stream_id, request.method, request.path, request.body.size());
 
         // Dispatch the request and send response
         HttpServerResponse response = sud->server->dispatch_request(request);
+
+        tlog().debug("on_frame_recv: submitting response on stream_id={} (status={})",
+                     frame->hd.stream_id, response.status_code);
+
         sud->server->submit_response(sud->conn, frame->hd.stream_id, response);
+
+        tlog().debug("on_frame_recv: response submitted successfully on stream_id={}",
+                     frame->hd.stream_id);
     }
 
     return 0;
@@ -539,7 +583,7 @@ int Http2ServerTransport::on_stream_close_callback(
     }
 
     // Clean up any pending request for this stream
-    std::lock_guard<std::mutex> lock(sud->conn->mutex);
+    // NOTE: conn->mutex is already held by read_from_connection caller
     sud->conn->pending_requests.erase(stream_id);
 
     return 0;
