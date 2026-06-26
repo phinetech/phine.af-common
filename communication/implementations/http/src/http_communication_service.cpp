@@ -3,7 +3,7 @@
  * @brief Implementation of the HTTP/2 communication service
  *
  * Implements the CommunicationService interface over HTTP/2.
- * Internal AF messaging uses a JSON envelope over POST /internal/messages.
+ * Internal AF messaging uses a JSON envelope.
  * External calls (PCF SBI, etc.) can use send_http() directly.
  */
 
@@ -151,11 +151,9 @@ bool HttpCommunicationService::initialize(
             return false;
         }
 
-        // Register the internal message endpoint
-        server_transport_->register_route("/internal/messages",
-            [this](const HttpRequest& req) {
-                return handle_internal_message(req);
-            });
+        // Note: REST endpoints are registered via register_http_endpoint(),
+        // called from af_core after initialization. No internal message
+        // endpoint is registered by default.
     }
 
     return true;
@@ -169,40 +167,17 @@ MessagePtr HttpCommunicationService::send_request(
     const std::string& /*destination*/,
     const MessagePtr& message) {
 
-    if (!client_transport_) {
-        return nullptr;
-    }
+    // HTTP transport does not support message envelope communication.
+    // Use gRPC or Direct transport for internal AF component communication.
+    // For external HTTP calls, use send_http() instead.
 
-    // Ensure connection
-    if (!client_transport_->is_connected()) {
-        if (!client_transport_->connect()) {
-            return nullptr;
-        }
-    }
+    tlog().error("send_request: not supported on HTTP transport - use gRPC or Direct for internal messaging");
 
-    // Serialize message to JSON
-    std::string body = serialize_message(message);
-
-    // Send as POST to /internal/messages
-    std::map<std::string, std::string> headers;
-    headers["content-type"] = "application/json";
-
-    HttpResponse response = client_transport_->send_request(
-        "POST", "/internal/messages", headers, body);
-
-    if (response.error || response.status_code < 200 || response.status_code >= 300) {
-        // Build error response
-        auto error_msg = std::make_shared<Message>();
-        error_msg->message_type = "error";
-        error_msg->correlation_id = message ? message->correlation_id : "";
-        error_msg->metadata["status_code"] = std::to_string(response.status_code);
-        error_msg->metadata["error"] = response.error_message.empty()
-            ? response.body : response.error_message;
-        return error_msg;
-    }
-
-    // Deserialize response
-    return deserialize_message(response.body);
+    auto error_msg = std::make_shared<Message>();
+    error_msg->message_type = "error";
+    error_msg->correlation_id = message ? message->correlation_id : "";
+    error_msg->metadata["error"] = "HTTP transport does not support send_request - use gRPC or Direct transport";
+    return error_msg;
 }
 
 bool HttpCommunicationService::send_async(
@@ -251,6 +226,55 @@ std::string HttpCommunicationService::subscribe(
 bool HttpCommunicationService::unsubscribe(const std::string& /*subscription_id*/) {
     // Not supported
     return false;
+}
+
+bool HttpCommunicationService::register_http_endpoint(
+    const std::string& method,
+    const std::string& path,
+    af::communication::HttpRequestHandler handler) {
+
+    tlog().debug("register_http_endpoint: method={} path={}", method, path);
+
+    if (!server_transport_) {
+        tlog().warn("register_http_endpoint: server transport not initialized (client_only mode?)");
+        return false;
+    }
+
+    // Wrap handler to:
+    // 1. Filter by HTTP method
+    // 2. Convert between af::communication::http types (used by transport) and
+    //    af::communication types (used by the public interface)
+    auto filtered_handler = [method, handler](const http::HttpRequest& req) -> http::HttpServerResponse {
+        // Convert from http:: namespace to base namespace
+        af::communication::HttpRequest base_req;
+        base_req.method = req.method;
+        base_req.path = req.path;
+        base_req.headers = req.headers;
+        base_req.body = req.body;
+
+        if (base_req.method != method) {
+            http::HttpServerResponse resp;
+            resp.status_code = 405;
+            resp.body = R"({"error": "Method Not Allowed"})";
+            resp.headers["content-type"] = "application/json";
+            resp.headers["allow"] = method;
+            return resp;
+        }
+
+        // Call handler with base namespace type
+        af::communication::HttpServerResponse base_resp = handler(base_req);
+
+        // Convert response back to http:: namespace
+        http::HttpServerResponse resp;
+        resp.status_code = base_resp.status_code;
+        resp.headers = base_resp.headers;
+        resp.body = base_resp.body;
+        return resp;
+    };
+
+    server_transport_->register_route(path, filtered_handler);
+    tlog().debug("register_http_endpoint: registered {} {}", method, path);
+    return true;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -416,51 +440,9 @@ MessagePtr HttpCommunicationService::deserialize_message(const std::string& json
     }
 }
 
-HttpServerResponse HttpCommunicationService::handle_internal_message(const HttpRequest& request) {
-    HttpServerResponse response;
-
-    tlog().debug("handle_internal_message: received {} {} ({} body byte(s))",
-                 request.method, request.path, request.body.size());
-
-    if (request.method != "POST") {
-        tlog().warn("handle_internal_message: method {} not allowed", request.method);
-        response.status_code = 405;
-        response.body = R"({"error": "Method Not Allowed"})";
-        return response;
-    }
-
-    tlog().trace("handle_internal_message: deserializing message body");
-    // Deserialize inbound message
-    auto message = deserialize_message(request.body);
-    if (!message) {
-        tlog().error("handle_internal_message: failed to deserialize message");
-        response.status_code = 400;
-        response.body = R"({"error": "Invalid message format"})";
-        return response;
-    }
-
-    tlog().debug("handle_internal_message: dispatching message_type='{}' correlation_id='{}'",
-                 message->message_type, message->correlation_id);
-
-    // Dispatch to handler
-    auto result = dispatch_to_handler(message);
-
-    if (result) {
-        tlog().debug("handle_internal_message: handler returned response message_type='{}'",
-                     result->message_type);
-        response.status_code = 200;
-        response.body = serialize_message(result);
-    } else {
-        tlog().error("handle_internal_message: handler returned null response");
-        response.status_code = 500;
-        response.body = R"({"error": "Handler returned no response"})";
-    }
-
-    response.headers["content-type"] = "application/json";
-    tlog().debug("handle_internal_message: returning response status={} ({} body byte(s))",
-                 response.status_code, response.body.size());
-    return response;
-}
+// handle_internal_message() has been removed - HTTP transport no longer supports
+// /internal/messages endpoint. Use REST API endpoints for external clients and
+// gRPC/Direct transport for internal AF component communication.
 
 MessagePtr HttpCommunicationService::dispatch_to_handler(const MessagePtr& message) {
     std::lock_guard<std::mutex> lock(handlers_mutex_);

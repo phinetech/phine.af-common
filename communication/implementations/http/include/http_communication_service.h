@@ -3,20 +3,17 @@
  * @brief HTTP/2 implementation of the CommunicationService interface
  *
  * This class implements the CommunicationService interface using HTTP/2 transport
- * via nghttp2. It supports both internal AF messaging (message envelope over
- * POST /internal/messages) and raw HTTP/2 requests for external service calls.
+ * via nghttp2. It supports:
+ * - REST API endpoints for external clients (via register_http_endpoint)
+ * - Raw HTTP/2 requests for external service calls (e.g., to 5G Core PCF SBI)
  *
  * Modes:
- * - Client-only: Only outbound HTTP/2 requests (e.g., af_core → pcf_handler)
- * - Server+Client: Inbound handler dispatch + outbound requests
+ * - Client-only: Only outbound HTTP/2 requests (e.g., for PCF SBI calls)
+ * - Server+Client: Inbound REST API dispatch + outbound requests
  *
- * Internal message contract:
- *   POST /internal/messages
- *   Body: JSON-serialized Message {message_type, correlation_id, payload, metadata}
- *   Response: JSON-serialized Message
- *
- * For external calls (e.g., PCF SBI), use send_http() directly with explicit
- * HTTP method/path/headers/body.
+ * Note: send_request() is NOT supported on HTTP transport. For internal AF
+ * component communication (e.g., af_core ↔ pcf_handler), use gRPC or Direct transport.
+ * For external HTTP calls (e.g., to 5G Core), use send_http() directly.
  */
 
 #pragma once
@@ -106,6 +103,21 @@ public:
     bool unsubscribe(const std::string& subscription_id) override;
 
     /**
+     * @brief Register a REST endpoint handler
+     *
+     * Allows registering HTTP method + path combinations for REST API endpoints.
+     * The handler receives the raw HTTP request and returns an HTTP response.
+     *
+     * @param method HTTP method (GET, POST, DELETE, etc.)
+     * @param path Path pattern (may include * wildcard for path parameters)
+     * @param handler Handler function
+     * @return bool True if registration succeeded
+     */
+    bool register_http_endpoint(const std::string& method,
+                               const std::string& path,
+                               af::communication::HttpRequestHandler handler) override;
+
+    /**
      * @brief Start the HTTP communication service
      */
     bool start() override;
@@ -161,11 +173,7 @@ private:
      */
     static MessagePtr deserialize_message(const std::string& json_str);
 
-    /**
-     * @brief Handle inbound internal message request
-     * Routes to the registered handler by message_type
-     */
-    HttpServerResponse handle_internal_message(const HttpRequest& request);
+    // handle_internal_message() removed - no longer supports /internal/messages endpoint
 
     /**
      * @brief Dispatch message to the appropriate registered handler

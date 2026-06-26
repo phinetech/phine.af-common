@@ -112,7 +112,7 @@ public:
 
     /**
      * @brief Register a handler for a specific path
-     * @param path The URL path to handle (e.g., "/internal/messages")
+     * @param path The URL path to handle (e.g., "/quality-on-demand/v1/sessions")
      * @param handler The handler function
      */
     void register_route(const std::string& path, HttpRequestHandler handler);
