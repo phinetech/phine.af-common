@@ -4,16 +4,23 @@
  *
  * This class implements the CommunicationService interface using HTTP/2 transport
  * via nghttp2. It supports:
+ * - Internal AF messaging (message envelope over POST /internal/messages),
+ *   e.g. af_core -> pcf_handler when they run as separate processes.
  * - REST API endpoints for external clients (via register_http_endpoint)
  * - Raw HTTP/2 requests for external service calls (e.g., to 5G Core PCF SBI)
  *
  * Modes:
- * - Client-only: Only outbound HTTP/2 requests (e.g., for PCF SBI calls)
- * - Server+Client: Inbound REST API dispatch + outbound requests
+ * - Client-only: Only outbound HTTP/2 requests (e.g., af_core -> pcf_handler,
+ *   or PCF SBI calls)
+ * - Server+Client: Inbound handler/REST dispatch + outbound requests
  *
- * Note: send_request() is NOT supported on HTTP transport. For internal AF
- * component communication (e.g., af_core ↔ pcf_handler), use gRPC or Direct transport.
- * For external HTTP calls (e.g., to 5G Core), use send_http() directly.
+ * Internal message contract:
+ *   POST /internal/messages
+ *   Body: JSON-serialized Message {message_type, correlation_id, payload, metadata}
+ *   Response: JSON-serialized Message
+ *
+ * For external calls (e.g., PCF SBI), use send_http() directly with explicit
+ * HTTP method/path/headers/body.
  */
 
 #pragma once
@@ -173,7 +180,11 @@ private:
      */
     static MessagePtr deserialize_message(const std::string& json_str);
 
-    // handle_internal_message() removed - no longer supports /internal/messages endpoint
+    /**
+     * @brief Handle inbound internal message request
+     * Routes to the registered handler by message_type
+     */
+    HttpServerResponse handle_internal_message(const HttpRequest& request);
 
     /**
      * @brief Dispatch message to the appropriate registered handler
