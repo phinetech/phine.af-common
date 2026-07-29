@@ -111,11 +111,12 @@ public:
     bool initialize(const Http2ServerConfig& config);
 
     /**
-     * @brief Register a handler for a specific path
+     * @brief Register a handler for a specific method and path
+     * @param method The HTTP method (e.g., "GET", "POST")
      * @param path The URL path to handle (e.g., "/quality-on-demand/v1/sessions")
      * @param handler The handler function
      */
-    void register_route(const std::string& path, HttpRequestHandler handler);
+    void register_route(const std::string& method, const std::string& path, HttpRequestHandler handler);
 
     /**
      * @brief Register a default handler for unmatched paths
@@ -155,7 +156,7 @@ private:
     std::unique_ptr<boost::asio::ip::tcp::acceptor> acceptor_;
     std::vector<std::thread> worker_threads_;
 
-    // Route handlers
+    // Route handlers keyed by "METHOD path" (e.g., "GET /sessions/*")
     std::map<std::string, HttpRequestHandler> route_handlers_;
     HttpRequestHandler default_handler_;
     std::mutex routes_mutex_;

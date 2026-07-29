@@ -154,7 +154,7 @@ bool HttpCommunicationService::initialize(
         // Register the internal message endpoint. REST endpoints registered
         // later via register_http_endpoint() are keyed by their own distinct
         // paths, so both coexist on the same route table without conflict.
-        server_transport_->register_route("/internal/messages",
+        server_transport_->register_route("POST", "/internal/messages",
             [this](const HttpRequest& req) {
                 return handle_internal_message(req);
             });
@@ -306,7 +306,7 @@ bool HttpCommunicationService::register_http_endpoint(
         return resp;
     };
 
-    server_transport_->register_route(path, filtered_handler);
+    server_transport_->register_route(method, path, filtered_handler);
     tlog().debug("register_http_endpoint: registered {} {}", method, path);
     return true;
 }

@@ -30,8 +30,8 @@ if(NOT NGHTTP2_FOUND AND NOT TARGET nghttp2::nghttp2)
     return()
 endif()
 
-# Find Boost
-find_package(Boost REQUIRED COMPONENTS system thread)
+# Find Boost (url requires Boost >= 1.81)
+find_package(Boost REQUIRED COMPONENTS system thread url)
 
 # Find OpenSSL (for future TLS support)
 if(NOT OpenSSL_FOUND)
@@ -72,6 +72,7 @@ target_link_libraries(af_http_communication
         af_cpp_utils
         Boost::system
         Boost::thread
+        Boost::url
 )
 
 # Link spdlog for diagnostic/trace logging

@@ -7,13 +7,17 @@
  */
 
 #include "http2_server_transport.h"
+#include "path_pattern.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <iostream>
+#include <regex>
 #include <sstream>
 #include <thread>
+
+#include <boost/url.hpp>
 
 #include <boost/asio/write.hpp>
 #include <boost/asio/read.hpp>
@@ -60,9 +64,9 @@ bool Http2ServerTransport::initialize(const Http2ServerConfig& config) {
     return true;
 }
 
-void Http2ServerTransport::register_route(const std::string& path, HttpRequestHandler handler) {
+void Http2ServerTransport::register_route(const std::string& method, const std::string& path, HttpRequestHandler handler) {
     std::lock_guard<std::mutex> lock(routes_mutex_);
-    route_handlers_[path] = std::move(handler);
+    route_handlers_[method + " " + path] = std::move(handler);
 }
 
 void Http2ServerTransport::set_default_handler(HttpRequestHandler handler) {
@@ -300,11 +304,47 @@ HttpServerResponse Http2ServerTransport::dispatch_request(const HttpRequest& req
     tlog().debug("dispatch_request: {} {} ({} body byte(s))",
                  request.method, request.path, request.body.size());
 
-    // Try exact path match
-    auto it = route_handlers_.find(request.path);
+    // Split the raw :path into path-only and query string.
+    // boost::urls::parse_relative_ref handles both "/path" and "/path?key=val".
+    // Route matching is always against the path component only; the full
+    // request.path (including query string) is forwarded untouched to handlers
+    // so that rest_router can extract query parameters via boost::urls.
+    std::string path_only = request.path;
+    {
+        auto parsed = boost::urls::parse_relative_ref(request.path);
+        if (parsed) {
+            path_only = parsed->path();
+        }
+    }
+
+    // Try exact method+path match
+    auto it = route_handlers_.find(request.method + " " + path_only);
     if (it != route_handlers_.end()) {
-        tlog().trace("dispatch_request: matched route '{}'", request.path);
+        tlog().trace("dispatch_request: matched route '{} {}'", request.method, path_only);
         return it->second(request);
+    }
+
+    // Try pattern match for routes containing {param} placeholders or * wildcards
+    for (const auto& [key, handler] : route_handlers_) {
+        // key format is "METHOD pattern"
+        auto space = key.find(' ');
+        if (space == std::string::npos) continue;
+        const std::string key_method = key.substr(0, space);
+        const std::string pattern    = key.substr(space + 1);
+
+        if (key_method != request.method) continue;
+        if (pattern.find('{') == std::string::npos &&
+            pattern.find('*') == std::string::npos) {
+            continue;
+        }
+
+        const std::regex path_regex(
+            "^" + path_pattern::to_regex(pattern) + "$");
+        if (std::regex_match(path_only, path_regex)) {
+            tlog().trace("dispatch_request: matched pattern route '{} {}'",
+                         key_method, pattern);
+            return handler(request);
+        }
     }
 
     // Try default handler
