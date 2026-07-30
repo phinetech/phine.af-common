@@ -19,7 +19,7 @@ if(USE_SYSTEM_BOOST)
     list(FILTER CMAKE_MODULE_PATH EXCLUDE REGEX "common/cmake")
 
     # Find Boost with required components
-    find_package(Boost 1.54.0 QUIET COMPONENTS system thread chrono url)
+    find_package(Boost 1.54.0 QUIET COMPONENTS system thread chrono atomic url)
 
     # Restore module path
     set(CMAKE_MODULE_PATH ${_CMAKE_MODULE_PATH_BACKUP})
