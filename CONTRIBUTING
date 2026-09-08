@@ -1,0 +1,11 @@
+# Contributing to phine.af-common
+
+This repository is a core component of the **phine.af** ecosystem.
+
+Please refer to the main repository's **[Contributor Guide](https://github.com/phinetech/phine.af/blob/main/CONTRIBUTING.md)** for detailed instructions on:
+
+* Developer Certificate of Origin (DCO) commit sign-offs (`git commit -s`).
+* Opening Pull Requests as Drafts.
+* Running code formatters and test suites locally.
+
+By contributing to this repository, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).
