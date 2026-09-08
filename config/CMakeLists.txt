@@ -25,17 +25,22 @@ if(NOT TARGET yaml-cpp)
 endif()
 
 # Create library
-add_library(af_config INTERFACE)
+add_library(af_config STATIC
+    src/af_config.cpp
+    src/af_typed_config.cpp
+)
 
-target_include_directories(af_config INTERFACE
+target_include_directories(af_config PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(af_config INTERFACE
-    af_cpp_utils
-    af_models
-    yaml-cpp
+target_link_libraries(af_config
+    PUBLIC
+        af_cpp_utils
+        af_models
+    spdlog::spdlog
+        yaml-cpp
 )
 
 # Install

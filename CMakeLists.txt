@@ -116,6 +116,7 @@ install(TARGETS
     af_communication_factory
     af_direct_communication
     af_grpc_communication
+    af_http_communication
     af_config
     af_common_component
     af_response

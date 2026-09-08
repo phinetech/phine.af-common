@@ -19,7 +19,7 @@ if(USE_SYSTEM_BOOST)
     list(FILTER CMAKE_MODULE_PATH EXCLUDE REGEX "common/cmake")
 
     # Find Boost with required components
-    find_package(Boost 1.54.0 QUIET COMPONENTS system thread)
+    find_package(Boost 1.54.0 QUIET COMPONENTS system thread chrono atomic url)
 
     # Restore module path
     set(CMAKE_MODULE_PATH ${_CMAKE_MODULE_PATH_BACKUP})
@@ -46,6 +46,11 @@ if(USE_SYSTEM_BOOST)
 
         find_library(Boost_THREAD_LIBRARY
             NAMES boost_thread libboost_thread
+            PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu
+        )
+
+        find_library(Boost_URL_LIBRARY
+            NAMES boost_url libboost_url
             PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu
         )
 
@@ -106,6 +111,14 @@ if(USE_SYSTEM_BOOST)
                     INTERFACE_LINK_LIBRARIES "Boost::system;pthread"
                 )
             endif()
+        endif()
+
+        if(Boost_URL_LIBRARY AND NOT TARGET Boost::url)
+            add_library(Boost::url UNKNOWN IMPORTED)
+            set_target_properties(Boost::url PROPERTIES
+                IMPORTED_LOCATION "${Boost_URL_LIBRARY}"
+                INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}"
+            )
         endif()
     endif()
 
@@ -174,6 +187,7 @@ else()
             COMMAND ${B2_EXECUTABLE}
                 --with-system
                 --with-thread
+                --with-url
                 --prefix=${BOOST_INSTALL_DIR}
                 --build-dir=${boost_BINARY_DIR}
                 variant=release
@@ -210,7 +224,13 @@ else()
         NO_DEFAULT_PATH
     )
 
-    set(Boost_LIBRARIES ${Boost_SYSTEM_LIBRARY} ${Boost_THREAD_LIBRARY})
+    find_library(Boost_URL_LIBRARY
+        NAMES boost_url libboost_url
+        PATHS ${Boost_LIBRARY_DIRS}
+        NO_DEFAULT_PATH
+    )
+
+    set(Boost_LIBRARIES ${Boost_SYSTEM_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_URL_LIBRARY})
 
     # Create imported targets
     add_library(Boost::boost INTERFACE IMPORTED)
@@ -229,6 +249,12 @@ else()
         IMPORTED_LOCATION "${Boost_THREAD_LIBRARY}"
         INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}"
         INTERFACE_LINK_LIBRARIES "Boost::system;pthread"
+    )
+
+    add_library(Boost::url SHARED IMPORTED)
+    set_target_properties(Boost::url PROPERTIES
+        IMPORTED_LOCATION "${Boost_URL_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}"
     )
 
     # Mark as found
